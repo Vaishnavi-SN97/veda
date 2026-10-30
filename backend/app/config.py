@@ -1,4 +1,4 @@
-"""Settings from the root .env. Values are never printed or logged."""
+"""Backend settings. Values are never printed or logged."""
 
 import os
 from datetime import date, timedelta
@@ -6,8 +6,9 @@ from pathlib import Path
 
 from dotenv import load_dotenv
 
-ROOT = Path(__file__).resolve().parents[2]
-load_dotenv(ROOT / ".env")
+BACKEND_DIR = Path(__file__).resolve().parents[1]
+ROOT = BACKEND_DIR.parent
+load_dotenv(BACKEND_DIR / ".env")
 
 
 def _sqlalchemy_url(url: str | None) -> str | None:
@@ -32,7 +33,7 @@ def _sqlalchemy_url(url: str | None) -> str | None:
     if password.startswith("[") and password.endswith("]"):
         password = password[1:-1]
     if password.upper() in ("YOUR-PASSWORD", "PASSWORD"):
-        raise RuntimeError("The database password in .env is still Supabase's placeholder text. Paste your real password.")
+        raise RuntimeError("The database password is still Supabase's placeholder text.")
     hp = urlsplit("//" + hostpart)
     return URL.create(
         "postgresql+psycopg",
@@ -53,10 +54,10 @@ MIGRATION_URL = _sqlalchemy_url(os.environ.get("DIRECT_URL")) or DATABASE_URL
 DEMO_MODE = os.environ.get("DEMO_MODE", "true").strip().lower() in ("1", "true", "yes", "on")
 DEMO_TODAY = date(2026, 10, 30)  # Friday; the seeded story is anchored here
 
-FRONTEND_ORIGINS = [o.strip() for o in os.environ.get("FRONTEND_ORIGINS", "http://localhost:3000,http://127.0.0.1:3000").split(",")]
+FRONTEND_ORIGINS = [origin.strip().rstrip("/") for origin in os.environ.get("FRONTEND_URL", "").split(",") if origin.strip()]
 
 SYLLABUS_DIR = ROOT / "docs" / "syllabus"
-APP_URL = (os.environ.get("NEXTAUTH_URL") or "http://localhost:3000").strip().rstrip("/")  # where the frontend runs
+APP_URL = FRONTEND_ORIGINS[0] if FRONTEND_ORIGINS else ""
 
 # Sarvam. The key is only ever read here and sent in a request header; never logged.
 SARVAM_API_KEY = os.environ.get("SARVAM_API_KEY", "").strip()

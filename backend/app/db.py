@@ -12,8 +12,7 @@ class Base(DeclarativeBase):
 
 
 def make_engine(url: str):
-    # No pre-ping: every checkout would cost a ~150 ms round trip to Supabase. Recycle instead.
-    kwargs: dict = {"pool_recycle": 240, "pool_size": 5, "max_overflow": 5}
+    kwargs: dict = {"pool_size": 5, "max_overflow": 2, "pool_pre_ping": True}
     if url.startswith("postgresql+psycopg"):
         # Supabase's transaction pooler (port 6543) can't keep server-side prepared statements
         kwargs["connect_args"] = {"prepare_threshold": None}
@@ -23,7 +22,7 @@ def make_engine(url: str):
 
 
 if not config.DATABASE_URL:
-    raise RuntimeError("DATABASE_URL is not set in the root .env")
+    raise RuntimeError("DATABASE_URL is not set in the backend environment.")
 
 engine = make_engine(config.DATABASE_URL)
 SessionLocal = sessionmaker(bind=engine, autoflush=False, expire_on_commit=False)

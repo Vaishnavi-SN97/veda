@@ -4,7 +4,8 @@ The FastAPI backend implements exactly this. The frontend calls it only through
 `frontend/lib/api.ts`, and the exact field types are in `frontend/lib/types.ts`.
 **Change all three together.**
 
-- Base URL: `NEXT_PUBLIC_API_URL` (default `http://localhost:8000`). All paths start with `/api`.
+- The frontend calls the same-origin proxy at `/api/backend`; the proxy forwards to the Render API
+  base URL in `NEXT_PUBLIC_API_URL`. Backend endpoint paths all start with `/api`.
 - JSON everywhere, **camelCase** field names (use Pydantic `alias_generator=to_camel`, `populate_by_name=True`).
 - Dates are `"YYYY-MM-DD"`, times are `"HH:MM"`, timestamps are ISO 8601 with offset.
 - `Grade` = `3 | 4 | 5`. `Language` = `"en" | "kn" | "hi"`. Days: `1` = Monday … `6` = Saturday.
@@ -15,7 +16,7 @@ The FastAPI backend implements exactly this. The frontend calls it only through
   timetable returns **422**.
 - With `DEMO_MODE=true` the backend serves seeded data and skips Google auth. "Today" is fixed
   to 2026-10-30; the frontend reads it from `GET /api/meta`, never from its own clock.
-- Interactive docs of the running API: http://localhost:8000/docs
+- Interactive docs of the running API: the backend host's `/docs` path.
 
 ## Rules the backend must keep
 

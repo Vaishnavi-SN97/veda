@@ -1,6 +1,6 @@
 "use client";
 
-// Voice in and out. VOICE_PROVIDER (root .env, read via /api/meta) picks the engine:
+// Voice in and out. VOICE_PROVIDER (backend setting, read via /api/meta) picks the engine:
 //   browser: free Web Speech API (speech recognition + speechSynthesis)
 //   sarvam:  record -> 16 kHz WAV -> Saaras speech-to-text; Bulbul text-to-speech played as audio
 // If a Sarvam voice call fails, speaking falls back to the browser voice.

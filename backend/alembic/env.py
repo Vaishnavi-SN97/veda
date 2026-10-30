@@ -1,4 +1,4 @@
-"""Alembic migrations. The URL comes from the root .env (DIRECT_URL, else DATABASE_URL), never from alembic.ini."""
+"""Alembic migrations use DIRECT_URL when set, otherwise DATABASE_URL."""
 
 import sys
 from logging.config import fileConfig

@@ -1,5 +1,5 @@
 // The ONLY place screens get data from: the FastAPI backend described in docs/api-contract.md.
-// Base URL: NEXT_PUBLIC_API_URL (default http://localhost:8000).
+// Browser requests use the same-origin proxy; it forwards to NEXT_PUBLIC_API_URL server-side.
 
 import type {
   AiUsage,
@@ -34,7 +34,7 @@ import type {
 } from "./types";
 
 // Same-origin proxy (frontend/app/api/backend) -> FastAPI. The proxy adds the Google token server-side.
-const API_URL = process.env.NEXT_PUBLIC_API_URL ?? "/api/backend";
+const API_URL = "/api/backend";
 
 export const API_ERROR_EVENT = "veda-api-error";
 export const OFFLINE_EVENT = "veda-offline";

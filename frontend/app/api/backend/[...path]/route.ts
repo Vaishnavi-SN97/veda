@@ -2,23 +2,28 @@
 //  - attach the teacher's Google access token from the encrypted NextAuth cookie (never exposed to JS),
 //  - prove to the backend that the call came through the app (X-Veda-Proxy, derived from NEXTAUTH_SECRET),
 //  - turn "backend unreachable" into a kind offline message.
-// Browser code calls /api/backend/api/... instead of http://localhost:8000/api/...
+// Browser code calls /api/backend/api/... so auth tokens stay server-side.
 
 import { createHash } from "node:crypto";
 import { getToken } from "next-auth/jwt";
 import type { NextRequest } from "next/server";
 import type { VedaToken } from "@/lib/auth";
 
-const BACKEND = process.env.VEDA_BACKEND_URL ?? "http://127.0.0.1:8000";
-
 function proxyKey() {
-  // computed per request so it always sees NEXTAUTH_SECRET from the root .env
+  // computed per request from the frontend's NEXTAUTH_SECRET environment variable
   return createHash("sha256").update(`veda-proxy:${process.env.NEXTAUTH_SECRET ?? ""}`).digest("hex");
 }
 
 async function forward(req: NextRequest, ctx: { params: Promise<{ path: string[] }> }) {
   const { path } = await ctx.params;
-  const url = `${BACKEND}/${path.map(encodeURIComponent).join("/")}${req.nextUrl.search}`;
+  const backendUrl = process.env.NEXT_PUBLIC_API_URL?.trim();
+  if (!backendUrl) {
+    return Response.json({ detail: "The backend URL is not configured.", code: "api_disabled" }, { status: 503 });
+  }
+  const url = new URL(
+    `${path.map(encodeURIComponent).join("/")}${req.nextUrl.search}`,
+    backendUrl.endsWith("/") ? backendUrl : `${backendUrl}/`,
+  );
 
   const headers = new Headers();
   for (const h of ["content-type", "accept"]) {

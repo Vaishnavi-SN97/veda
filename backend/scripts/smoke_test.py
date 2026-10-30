@@ -1,16 +1,19 @@
-"""Call every endpoint of a running API (default http://localhost:8000) and report status + time.
+"""Call every endpoint of a running API and report status + time.
 
     python scripts/smoke_test.py            # read-only calls
     python scripts/smoke_test.py --write    # also the demo story writes (re-seed afterwards)
 """
 
+import os
 import sys
 import time
 
 import httpx
 
 sys.stdout.reconfigure(encoding="utf-8")
-BASE = "http://localhost:8000"
+BASE = os.environ.get("NEXT_PUBLIC_API_URL", "").strip()
+if not BASE:
+    raise SystemExit("Set NEXT_PUBLIC_API_URL to the backend URL before running this check.")
 WRITE = "--write" in sys.argv
 c = httpx.Client(base_url=BASE, timeout=120)
 failures = 0

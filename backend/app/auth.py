@@ -69,7 +69,7 @@ def principal(request: Request, db: Session = Depends(get_db)) -> Principal:
     if config.DEMO_MODE:
         return Principal(teacher=None, klass=svc.load_class(db, class_id=svc.DEMO_CLASS_ID), google_token=None)
     if not proxy_ok(request):
-        raise AuthError(401, "proxy", "Please open Veda through the app (http://localhost:3000).")
+        raise AuthError(401, "proxy", "Please open Veda through the teacher app.")
     authz = request.headers.get("authorization", "")
     if not authz.lower().startswith("bearer "):
         raise AuthError(401, "signed_out", "Please sign in with Google to use the teacher pages.")

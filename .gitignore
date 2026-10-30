@@ -66,8 +66,7 @@ web_modules/
 .yarn-integrity
 
 # dotenv environment variable files
-.env
-.env.*
+.env*
 !.env.example
 
 # parcel-bundler cache (https://parceljs.org/)
@@ -149,10 +148,7 @@ vite.config.ts.timestamp-*
 .turbo
 
 # ---- Veda RuralClass ----
-# secrets: keys live only in the root .env
-.env
-.env.*
-!.env.example
+# App-specific environment files are ignored; checked-in examples remain visible.
 
 # KTBS textbooks are marked "Not to be republished": keep them local, never on GitHub
 docs/syllabus/*.pdf

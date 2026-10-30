@@ -86,8 +86,8 @@ def test_ensure_topic_creates_when_missing(fake):
 
 def test_material_and_coursework_are_published_under_the_topic(fake):
     svc = fake({"materials": {"create": Req({"id": "m1"})}, "coursework": {"create": Req({"id": "w1"})}})
-    assert classroom.post_material("tok", "c1", "t1", "Cards", "text", "http://localhost:3000/student?class=x") == "m1"
-    assert classroom.post_coursework("tok", "c1", "t1", "Quiz", "do it", "http://localhost:3000/student?class=x") == "w1"
+    assert classroom.post_material("tok", "c1", "t1", "Cards", "text", "https://veda.example/student?class=x") == "m1"
+    assert classroom.post_coursework("tok", "c1", "t1", "Quiz", "do it", "https://veda.example/student?class=x") == "w1"
     mat = next(kw["body"] for name, kw in svc.log if name == "create" and "materials" in kw["body"] and "workType" not in kw["body"])
     cw = next(kw["body"] for name, kw in svc.log if name == "create" and kw["body"].get("workType"))
     assert mat["topicId"] == "t1" and mat["state"] == "PUBLISHED" and mat["materials"][0]["link"]["url"].endswith("class=x")

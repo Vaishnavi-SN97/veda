@@ -1,16 +1,20 @@
-"""Live check of every Sarvam feature through the running API (http://localhost:8000). Uses ~15 Sarvam calls.
+"""Live check of every Sarvam feature through the running API. Uses ~15 Sarvam calls.
 
     python scripts/live_check.py
 """
 
 import base64
+import os
 import sys
 import time
 
 import httpx
 
 sys.stdout.reconfigure(encoding="utf-8")
-c = httpx.Client(base_url="http://localhost:8000", timeout=300)
+base_url = os.environ.get("NEXT_PUBLIC_API_URL", "").strip()
+if not base_url:
+    raise SystemExit("Set NEXT_PUBLIC_API_URL to the backend URL before running this check.")
+c = httpx.Client(base_url=base_url, timeout=300)
 
 
 def count() -> int:

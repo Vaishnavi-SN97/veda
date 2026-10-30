@@ -1,7 +1,7 @@
 // Start backend (FastAPI on :8000) and frontend (Next.js on :3000) together.
 //   npm run dev        development (hot reload for the frontend)
 //   npm start          production build: faster, offline service worker on; use this for demos
-// Ctrl+C stops both. Demo vs real mode: DEMO_MODE in the root .env.
+// Ctrl+C stops both. Demo vs real mode: DEMO_MODE in backend/.env.
 import { execSync, spawn } from "node:child_process";
 import { existsSync } from "node:fs";
 import { join } from "node:path";
@@ -61,4 +61,4 @@ if (prod) {
 }
 start("api", "36", python, ["-m", "uvicorn", "app.main:app", "--port", "8000"], join(root, "backend"));
 start("web", "35", "npm", ["run", prod ? "start" : "dev"], join(root, "frontend"));
-console.log(`Veda (${prod ? "production" : "development"}): frontend http://localhost:3000  ·  API http://localhost:8000/docs  ·  Ctrl+C to stop`);
+console.log(`Veda (${prod ? "production" : "development"}): frontend and API are starting  ·  Ctrl+C to stop`);

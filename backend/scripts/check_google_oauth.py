@@ -14,10 +14,12 @@ import httpx
 from dotenv import load_dotenv
 
 sys.stdout.reconfigure(encoding="utf-8")
-load_dotenv(Path(__file__).resolve().parents[2] / ".env")
+load_dotenv(Path(__file__).resolve().parents[2] / "frontend" / ".env.local")
 
 cid = os.environ.get("GOOGLE_CLIENT_ID", "").strip()
-base = os.environ.get("NEXTAUTH_URL", "http://localhost:3000").strip().rstrip("/")
+base = os.environ.get("NEXTAUTH_URL", "").strip().rstrip("/")
+if not base:
+    raise SystemExit("Set NEXTAUTH_URL in the frontend environment before checking OAuth.")
 u = urlsplit(base)
 print(f"NEXTAUTH_URL host: {u.scheme}://{u.netloc}{u.path}")
 print(f"GOOGLE_CLIENT_ID looks like a web client id: {cid.endswith('.apps.googleusercontent.com')}")

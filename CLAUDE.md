@@ -13,7 +13,8 @@ Early alert → Plan adjusts.
 ## Repository layout
 
 ```
-.env                  # all keys, root only. NEVER print, hard-code or commit.
+backend/.env          # backend local variables; never print, hard-code or commit.
+frontend/.env.local   # frontend local variables; never print, hard-code or commit.
 CLAUDE.md
 docs/
   VEDA-RURALCLASS_3pages.pdf   # proposal
@@ -39,8 +40,9 @@ backend/              # Python FastAPI + SQLAlchemy + Alembic + PostgreSQL
 
 ## Secrets
 
-- Keys live only in the root `.env`. Never print, log, echo, hard-code or commit them.
-- Don't `cat`/Read `.env`. Refer to variables by name only.
+- Keep each app's variables in its own local env file or deployment environment. Never print,
+  log, echo, hard-code or commit secret values.
+- Don't `cat`/Read env files. Refer to variables by name only.
 - `.gitignore` must always cover `.env*`.
 
 ## Sarvam budget (₹100 total credit)
@@ -116,13 +118,14 @@ backend/              # Python FastAPI + SQLAlchemy + Alembic + PostgreSQL
   - TTS is the expensive part (~₹0.003/char): cached by exact text; voice defaults to the free browser.
   - `SARVAM_DISABLED=true` → placeholders (textbook quotes) everywhere; nothing breaks.
   - `scripts/pregenerate.py` writes the demo decks once; `scripts/live_check.py` tests every feature (~12 calls).
-- `.env` URLs: the loader tolerates Supabase's `[password]` brackets, an un-encoded `@` in the
+- Database URLs: the loader tolerates Supabase's `[password]` brackets, an un-encoded `@` in the
   password and Prisma's `?pgbouncer=true`. Migrations use `DIRECT_URL`, the app `DATABASE_URL`.
 
 ## Frontend architecture
 
 - `frontend/lib/types.ts`: the API contract types. `frontend/lib/api.ts`: the ONLY place
-  screens get data from; it calls the backend (`NEXT_PUBLIC_API_URL`, default http://localhost:8000).
+  screens get data from; it calls the same-origin proxy, which forwards to the backend using
+  `NEXT_PUBLIC_API_URL`.
 - `docs/api-contract.md` mirrors `types.ts` + `api.ts` + `backend/app/schemas.py`.
   Keep all four in sync whenever the contract changes.
 - Failed calls dispatch an event that `components/ApiStatus.tsx` shows as a banner with the server's reason.
@@ -144,7 +147,7 @@ cd frontend; npx tsc --noEmit; npx eslint .; npx next build   # must pass
 
 - Steps 0–3 done: frontend, backend, and Sarvam AI (cards/quiz, planner activities, Vidya tutor,
   Saaras/Bulbul voice, alert wording, admin usage page). 41 Sarvam calls ≈ ₹3.5 used while building.
-- `.env` options: `VOICE_PROVIDER=browser|sarvam` (default browser, free), `SARVAM_DISABLED=true`,
+- Backend environment options: `VOICE_PROVIDER=browser|sarvam` (default browser, free), `SARVAM_DISABLED=true`,
   `AI_BUDGET_INR` (default 100).
 - Step 4 done: Google sign-in, real Classroom (courses, rosters, materials, coursework, topics, two-way
   grade sync), kind errors (expired login / missing permission / offline with cached data), PDF report

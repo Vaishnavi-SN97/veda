@@ -15,21 +15,9 @@ Team **MergeMates**: Shravya (lead), Vaishnavi, Chethana.
 
 ## 1. Setup (once)
 
-Needs **Node 20+**, **Python 3.11+**, and a root **`.env`** (never committed):
-
-```env
-DATABASE_URL=postgresql://...      # Supabase pooler URL
-DIRECT_URL=postgresql://...        # Supabase direct URL (used for migrations)
-DEMO_MODE=true                     # true = sample class, no Google login; false = real Classroom
-SARVAM_API_KEY=...                 # AI (cards, quiz, Vidya, voice)
-GOOGLE_CLIENT_ID=...apps.googleusercontent.com
-GOOGLE_CLIENT_SECRET=...
-NEXTAUTH_SECRET=...                # any long random string
-NEXTAUTH_URL=http://localhost:3000
-# optional
-VOICE_PROVIDER=browser             # or "sarvam" for Saaras/Bulbul voice (paid per use)
-SARVAM_DISABLED=false              # true = no AI calls at all (placeholders)
-```
+Needs **Node 20+**, **Python 3.11.9**, and separate environment files for the backend and frontend.
+Copy `backend/.env.example` to `backend/.env` and `frontend/.env.example` to
+`frontend/.env.local`. Never commit the real files.
 
 Then, from the project root:
 
@@ -45,13 +33,14 @@ npm run dev       # development (frontend hot reload; restart after backend edit
 npm test          # backend tests: planner rules, risk score, AI validation, Classroom
 ```
 
-Open **http://localhost:3000**. API docs: http://localhost:8000/docs.
+Open the frontend address shown by Next.js. The API docs are available at `/docs` on the backend host.
 Other commands: `npm run seed` (reset the demo class), `npm run pregenerate` (AI cards for demo topics, once),
 `npm run import-syllabus` (re-read `docs/syllabus/*.pdf`).
 
 ## 3. Demo mode vs real mode
 
-Set `DEMO_MODE` in the root `.env` and restart (`npm start`).
+Set `DEMO_MODE` in `backend/.env` and `NEXT_PUBLIC_DEMO_MODE` in
+`frontend/.env.local`, then restart (`npm start`).
 
 - **`DEMO_MODE=true`**: the sample class "Hosahalli Multi-grade Room" (25 students, 4 weeks of data,
   Ravi's story). No Google login. "Send to class" uses fake Classroom ids. Student PIN for everyone: **1234**.
@@ -68,12 +57,12 @@ Set `DEMO_MODE` in the root `.env` and restart (`npm start`).
    Google account under **Test users**:
    `classroom.courses`, `classroom.rosters.readonly`, `classroom.profile.emails`,
    `classroom.coursework.students`, `classroom.courseworkmaterials`, `classroom.topics` (+ openid, email, profile).
-3. OAuth client → **Authorized redirect URI**: `http://localhost:3000/api/auth/callback/google`.
+3. OAuth client → **Authorized redirect URI**: `${NEXTAUTH_URL}/api/auth/callback/google`.
 4. Sign in on the Google screen and **tick every Classroom box** (Veda shows a "Sign in again" button if a
    permission is missing or the login expires).
 
 Students don't sign in with Google: the teacher opens the **student link** shown in Class setup → Students
-(`http://localhost:3000/student?class=…`) once on the family phone; the phone remembers the class.
+once on the family phone; the phone remembers the class.
 
 ## 4. The 2-minute demo script (demo mode)
 
@@ -91,7 +80,12 @@ Students don't sign in with Google: the teacher opens the **student link** shown
 Offline: open the student screens once, then turn off the internet. Cards and quizzes still open, and a
 finished quiz is saved on the phone and sent when it's back online.
 
-## 5. Costs
+## 5. Deploy
+
+See [DEPLOY.md](./DEPLOY.md) for the Vercel, Render, and Supabase setup, commands, environment
+variables, and Google OAuth redirect URI.
+
+## 6. Costs
 
 AI uses Sarvam (₹100 budget). Every call is logged; see **AI usage** in the top-bar menu (`/admin`).
 Generated cards, activity lines, alert wording and voice clips are cached, so the demo costs ~₹0 to re-run.

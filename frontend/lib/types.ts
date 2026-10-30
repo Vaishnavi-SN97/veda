@@ -16,7 +16,7 @@ export interface Meta {
   nextWeek: string;
   demoPin: string | null;
   sarvamEnabled: boolean;
-  voiceProvider: "browser" | "sarvam"; // VOICE_PROVIDER in the root .env
+  voiceProvider: "browser" | "sarvam"; // VOICE_PROVIDER in the backend environment
   classId: string | null; // demo class in demo mode
 }
 

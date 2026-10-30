@@ -15,8 +15,8 @@ function run(cmd, args, cwd, label) {
   execFileSync(cmd, args, { cwd, stdio: "inherit", shell: win && cmd === "npm" });
 }
 
-if (!existsSync(join(root, ".env"))) {
-  console.error("Missing .env in the project root (DATABASE_URL, DIRECT_URL, DEMO_MODE, ...).");
+if (!existsSync(join(backend, ".env"))) {
+  console.error("Missing backend/.env (DATABASE_URL, DIRECT_URL, DEMO_MODE, ...).");
   process.exit(1);
 }
 if (!existsSync(python)) run(win ? "python" : "python3", ["-m", "venv", ".venv"], backend, "Create backend/.venv");
