@@ -9,6 +9,7 @@ ortools==9.11.4210
 pypdf==5.1.0
 google-api-python-client==2.157.0
 google-auth==2.37.0
+reportlab==4.2.5
 # OCR for scanned PDF pages (also needs the Tesseract program installed; optional)
 pytesseract==0.3.13
 # tests
