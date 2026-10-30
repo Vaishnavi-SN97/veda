@@ -20,7 +20,6 @@ export function DemoBanner() {
         {DEMO_MODE && (
           <>
             <span className="rounded-md border border-accent/50 px-2 py-1 text-[11px] font-semibold uppercase tracking-wider text-accent">Demo</span>
-            <span className="hidden text-sm text-ink-3 md:inline">Fake data · no Google login · today is Fri 30 Oct 2026</span>
             <nav aria-label="Switch demo view" className="ml-auto flex rounded-xl border border-line p-0.5">
               <Link
                 href="/teacher"
