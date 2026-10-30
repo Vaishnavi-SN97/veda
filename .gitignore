@@ -147,3 +147,31 @@ vite.config.ts.timestamp-*
 
 # Turbo Repo
 .turbo
+
+# ---- Veda RuralClass ----
+# secrets: keys live only in the root .env
+.env
+.env.*
+!.env.example
+
+# KTBS textbooks are marked "Not to be republished": keep them local, never on GitHub
+docs/syllabus/*.pdf
+
+# node / next
+node_modules/
+.next/
+out/
+*.tsbuildinfo
+next-env.d.ts
+
+# python
+__pycache__/
+*.pyc
+.venv/
+venv/
+
+# os / editors
+.DS_Store
+Thumbs.db
+.vscode/
+.idea/
