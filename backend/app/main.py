@@ -50,7 +50,7 @@ async def require_proxy_in_real_mode(request: Request, call_next):
     """Real mode: only the Next.js proxy (which holds the Google token) may call the API."""
     if not config.DEMO_MODE and request.url.path.startswith("/api/") and request.url.path not in ("/api/health", "/api/meta") and request.method != "OPTIONS":
         if not proxy_ok(request):
-            return JSONResponse(status_code=401, content={"detail": "Please open Veda through the app (http://localhost:3000).", "code": "proxy"})
+            return JSONResponse(status_code=401, content={"detail": "Please open Veda through the teacher app.", "code": "proxy"})
     return await call_next(request)
 
 
@@ -91,6 +91,11 @@ def student_link(klass: m.MultigradeClass) -> str:
 @app.get("/api/health")
 def health():
     return {"ok": True, "demoMode": config.DEMO_MODE}
+
+
+@app.get("/health")
+def render_health():
+    return {"ok": True}
 
 
 @app.get("/api/meta", response_model=s.Meta)
