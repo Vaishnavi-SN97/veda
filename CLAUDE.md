@@ -60,38 +60,73 @@ backend/              # Python FastAPI + SQLAlchemy + Alembic + PostgreSQL
 - Includes **Ravi** (Grade 4): fraction scores down 3 weeks in a row and missed 4 days,
   which drives an early-warning alert.
 - The UI shows a demo-mode banner and a teacher/student switch.
-- Frontend: `NEXT_PUBLIC_DEMO_MODE=true` (in demo, `lib/api.ts` serves mock data).
+- Seed: `backend/app/demo_seed.py` (run `npm run seed`, or "Reset demo data" in the top-bar menu).
+  "Today" is fixed to Fri 30 Oct 2026; the frontend reads dates from `GET /api/meta`.
+- `NEXT_PUBLIC_DEMO_MODE` only controls the frontend's demo banner; the backend's `DEMO_MODE` decides behaviour.
 
 ## Google Classroom mapping
 
+- Sign-in: NextAuth v4 (`frontend/lib/auth.ts`), Google provider, `access_type=offline`, `prompt=consent`.
+  Scopes: `openid email profile` + `classroom.courses`, `classroom.rosters.readonly`,
+  `classroom.profile.emails`, `classroom.coursework.students`, `classroom.courseworkmaterials`, `classroom.topics`.
+- Tokens stay in the encrypted NextAuth cookie. The browser calls `/api/backend/*` (Next route handler),
+  which adds `Authorization: Bearer <access token>` and `X-Veda-Proxy` (sha256 of NEXTAUTH_SECRET) and
+  forwards to FastAPI. In real mode the backend rejects calls without the proxy key and checks tokens
+  with Google's tokeninfo (`backend/app/auth.py`). Classroom calls: `backend/app/classroom.py`.
+- Each teacher (Google account) has their own class. Syllabus topics + AI decks are shared; progress
+  (`topic_progress`) and sends (`deck_send`) are per class. Demo reset touches only `class-hosahalli`.
 - One Veda multi-grade class links **3 Classroom courses** (one per grade).
 - Rosters come from Classroom.
 - Topic cards post to Classroom as **materials**; quizzes post as **coursework**.
 - Veda's own DB stores: syllabus, timetable, attendance, marks, mastery, tutor sessions, alerts.
 
-## Syllabus (KTBS Karnataka, Mathematics, English medium, Part I)
+## Syllabus (KTBS Karnataka, Mathematics, English medium)
 
-- Grade 3: Shapes · Numbers · Addition · Subtraction · Multiplication
-- Grade 4: Perimeter and Area of simple geometrical figures · Numbers · Addition ·
-  Subtraction · Multiplication · Division · Circles · Mental Arithmetic ·
-  Fractional Numbers (Fractions and Decimals)
-- Grade 5: PDF not yet added; mock data uses placeholder topics. Replace them from
-  `docs/syllabus/grade5.pdf` once it's there.
-- Shared chapter names (Numbers, Addition, Subtraction, Multiplication) are the
-  natural candidates for **cross-grade merged sessions** ("one session, three levels").
+- Imported from the PDFs by `backend/scripts/import_syllabus.py` into the `topic` table:
+  chapters + page ranges from each book's CONTENTS page, topics from each chapter's
+  "After studying this chapter you can…" outcomes, `source_text` = only that topic's pages.
+  Full list: `docs/syllabus-topics.txt`. Re-running keeps ids and progress.
+- Grade 3 (Part I, 5 chapters, 34 topics) · Grade 4 (Part I, 9 chapters, 44 topics) ·
+  Grade 5 (**Part II**, 10 chapters, 53 topics).
+- Merge candidates are found automatically: a chapter concept that is current for one grade and
+  current or done for another (e.g. Multiplication for all three, Fractions/Decimals for 4 + 5).
+
+## Backend architecture (backend/)
+
+- `app/main.py` routes (every endpoint in `docs/api-contract.md`), `app/schemas.py` (camelCase,
+  mirrors `frontend/lib/types.ts`), `app/models.py` (SQLAlchemy), `alembic/` migrations.
+- `app/planner.py`: CP-SAT weekly planner (pure function, rules in its docstring). Tests: `tests/test_planner.py`.
+- `app/risk.py`: transparent risk score (formula in its docstring). Tests: `tests/test_risk.py`.
+- `app/services.py`: shared logic. **Supabase is ~150 ms per round trip**: class-wide numbers come
+  from `snapshot()` (a handful of queries), never one query per student. GET requests use an
+  autocommit session (no BEGIN/ROLLBACK round trips). `Topic.source_text` is deferred in lists.
+- `ai_client.py`: the only place for AI (Sarvam, endpoints checked against docs.sarvam.ai Oct 2026):
+  `POST /v1/chat/completions` (sarvam-105b, sarvam-105b-conversations), `POST /speech-to-text`
+  (saaras:v4, ≤30 s), `POST /text-to-speech` (bulbul:v3, speaker priya, mp3). Header `api-subscription-key`.
+  - Cards + quiz: strict JSON from ONE topic's source_text, validated with Pydantic, retried once.
+    Quiz answers come back as the correct option's TEXT (models get indexes wrong), options with equal
+    values (3/6 vs 1/2) are rejected, options are shuffled in code. Kannada/Hindi = one translation call
+    from the saved English deck. Saved decks are never regenerated except by the Regenerate button.
+  - Reasoning is OFF (`reasoning_effort: null`): with it on, hidden thinking used the whole token budget
+    and returned empty content.
+  - Planner activity lines and alert wording: one batched call, cached in `ai_cache` (bump
+    `ALERT_PROMPT_VERSION` after changing that prompt).
+  - Every paid call is logged on its own committed connection with a running count (`/admin` page).
+    Each whole call has a 120 s deadline (a trickling reply once took 19 minutes).
+  - TTS is the expensive part (~₹0.003/char): cached by exact text; voice defaults to the free browser.
+  - `SARVAM_DISABLED=true` → placeholders (textbook quotes) everywhere; nothing breaks.
+  - `scripts/pregenerate.py` writes the demo decks once; `scripts/live_check.py` tests every feature (~12 calls).
+- `.env` URLs: the loader tolerates Supabase's `[password]` brackets, an un-encoded `@` in the
+  password and Prisma's `?pgbouncer=true`. Migrations use `DIRECT_URL`, the app `DATABASE_URL`.
 
 ## Frontend architecture
 
 - `frontend/lib/types.ts`: the API contract types. `frontend/lib/api.ts`: the ONLY place
-  screens get data from. Functions return mock data now (`frontend/lib/mock/`); later they
-  call the FastAPI backend without the screens changing.
-- `docs/api-contract.md` mirrors `types.ts` + `api.ts` for the backend to implement.
-  Keep all three in sync whenever the contract changes.
+  screens get data from; it calls the backend (`NEXT_PUBLIC_API_URL`, default http://localhost:8000).
+- `docs/api-contract.md` mirrors `types.ts` + `api.ts` + `backend/app/schemas.py`.
+  Keep all four in sync whenever the contract changes.
+- Failed calls dispatch an event that `components/ApiStatus.tsx` shows as a banner with the server's reason.
 - Teacher routes live under `/teacher/*`, student routes under `/student/*`.
-
-- `frontend/lib/mock/`: seed data (`seed.ts`), planner stand-in (`plan.ts`), demo cards/quizzes/tutor
-  replies (`content.ts`), browser-persisted demo state (`store.ts`), mock API (`index.ts`).
-  The demo banner's reset button restores the seed.
 - Next.js 16 with Cache Components: screens are client components that load through `lib/api.ts`
   in effects. Read `frontend/node_modules/next/dist/docs/` before using a Next API you're unsure of.
   Reading `searchParams` = server `page.tsx` passes the promise to a client component inside `<Suspense>`.
@@ -99,17 +134,23 @@ backend/              # Python FastAPI + SQLAlchemy + Alembic + PostgreSQL
 ## Running
 
 ```
-cd frontend
-npm run dev        # http://localhost:3000
-npx tsc --noEmit; npx eslint .; npx next build   # all three must pass
+npm run setup      # first time: venv + packages, DB tables, syllabus import, demo seed
+npm run dev        # backend :8000 + frontend :3000 together (Ctrl+C stops both)
+npm test           # backend planner + risk tests
+cd frontend; npx tsc --noEmit; npx eslint .; npx next build   # must pass
 ```
 
 ## Status
 
-- Step 0 (this file) and Step 1 (complete frontend on mock data) done.
-- Next: Step 2, the backend in `backend/`, implementing `docs/api-contract.md`.
-- Grade 5 textbook PDF still to be added; then replace the placeholder Grade 5 topics in
-  `frontend/lib/mock/seed.ts` (and the backend seed).
+- Steps 0–3 done: frontend, backend, and Sarvam AI (cards/quiz, planner activities, Vidya tutor,
+  Saaras/Bulbul voice, alert wording, admin usage page). 41 Sarvam calls ≈ ₹3.5 used while building.
+- `.env` options: `VOICE_PROVIDER=browser|sarvam` (default browser, free), `SARVAM_DISABLED=true`,
+  `AI_BUDGET_INR` (default 100).
+- Step 4 done: Google sign-in, real Classroom (courses, rosters, materials, coursework, topics, two-way
+  grade sync), kind errors (expired login / missing permission / offline with cached data), PDF report
+  (reportlab), offline student cards + queued quizzes. `npm start` = production demo run.
+- Not done: student token enforcement on student routes; real-mode end-to-end needs a human Google login.
+  The API runs without auto-reload (uvicorn's reloader stopped the server on Windows).
 
 ## Design
 

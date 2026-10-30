@@ -1,8 +1,8 @@
-// The ONLY place screens get data from. In demo mode every call is answered by lib/mock;
-// otherwise it calls the FastAPI backend described in docs/api-contract.md.
-// Screens never import lib/mock directly, so switching to the real backend touches only this file.
+// The ONLY place screens get data from: the FastAPI backend described in docs/api-contract.md.
+// Base URL: NEXT_PUBLIC_API_URL (default http://localhost:8000).
 
 import type {
+  AiUsage,
   Alert,
   AlertAction,
   AttendanceSheet,
@@ -11,8 +11,10 @@ import type {
   ClassroomCourse,
   Dashboard,
   Grade,
+  ImportResult,
   Language,
   MarksSheet,
+  Meta,
   MoveRequest,
   QuizResult,
   QuizSubmission,
@@ -23,57 +25,98 @@ import type {
   StudentProfile,
   StudentSummary,
   StudentToday,
+  SyncResult,
   Topic,
   TutorReply,
   TutorRequest,
   VoiceNoteResult,
   WeekPlan,
 } from "./types";
-import * as mock from "./mock";
-import { resetDemo as resetMock } from "./mock/store";
-import { DEMO_TODAY, NEXT_WEEK_START, WEEK_STARTS } from "./mock/seed";
 
-export const DEMO_MODE = process.env.NEXT_PUBLIC_DEMO_MODE !== "false";
-const API_URL = process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:8000";
+// Same-origin proxy (frontend/app/api/backend) -> FastAPI. The proxy adds the Google token server-side.
+const API_URL = process.env.NEXT_PUBLIC_API_URL ?? "/api/backend";
 
-// Demo calendar: "today" is fixed so the seeded story always lines up.
-export const TODAY = DEMO_MODE ? DEMO_TODAY : new Date().toISOString().slice(0, 10);
-export const THIS_WEEK = DEMO_MODE ? WEEK_STARTS[3] : mondayOf(TODAY);
-export const NEXT_WEEK = DEMO_MODE ? NEXT_WEEK_START : addDays(THIS_WEEK, 7);
+export const API_ERROR_EVENT = "veda-api-error";
+export const OFFLINE_EVENT = "veda-offline";
 
-function addDays(iso: string, n: number) {
-  const d = new Date(iso + "T00:00:00Z");
-  d.setUTCDate(d.getUTCDate() + n);
-  return d.toISOString().slice(0, 10);
-}
-function mondayOf(iso: string) {
-  const day = new Date(iso + "T00:00:00Z").getUTCDay() || 7;
-  return addDays(iso, 1 - day);
+export type ApiErrorCode = "google_expired" | "signed_out" | "google_permission" | "api_disabled" | "offline" | "proxy" | string;
+
+export class ApiError extends Error {
+  constructor(message: string, readonly status: number, readonly code?: ApiErrorCode) {
+    super(message);
+  }
 }
 
-// Small delay so the demo feels like a network app and loading states get exercised.
-function demo<T>(fn: () => T, ms = 120): Promise<T> {
-  return new Promise((resolve, reject) =>
-    setTimeout(() => {
-      try {
-        resolve(structuredClone(fn()));
-      } catch (e) {
-        reject(e);
-      }
-    }, ms),
-  );
+function report(message: string, code?: ApiErrorCode) {
+  if (typeof window !== "undefined") window.dispatchEvent(new CustomEvent(API_ERROR_EVENT, { detail: { message, code } }));
 }
 
-async function http<T>(method: string, path: string, body?: unknown): Promise<T> {
-  const res = await fetch(`${API_URL}${path}`, {
-    method,
-    headers: body ? { "Content-Type": "application/json" } : undefined,
-    body: body ? JSON.stringify(body) : undefined,
-    credentials: "include",
-  });
-  if (res.status === 404) return null as T;
-  if (!res.ok) throw new Error(`${method} ${path} failed: ${res.status}`);
-  return (await res.json()) as T;
+function notifyOffline(on: boolean) {
+  if (typeof window !== "undefined") window.dispatchEvent(new CustomEvent(OFFLINE_EVENT, { detail: on }));
+}
+
+// Last good copy of every GET, so screens still work with no internet (and the student's cards work offline).
+const CACHE_PREFIX = "veda-cache:";
+function cacheGet<T>(path: string): T | undefined {
+  try {
+    const raw = localStorage.getItem(CACHE_PREFIX + path);
+    return raw ? (JSON.parse(raw) as T) : undefined;
+  } catch {
+    return undefined;
+  }
+}
+function cachePut(path: string, data: unknown) {
+  try {
+    localStorage.setItem(CACHE_PREFIX + path, JSON.stringify(data));
+  } catch {
+    // storage full or blocked: offline copy just isn't kept
+  }
+}
+
+async function http<T>(method: string, path: string, body?: unknown, opts: { allow404?: boolean; quiet?: boolean } = {}): Promise<T> {
+  const isGet = method === "GET";
+  const offlineFallback = (): T => {
+    const cached = isGet ? cacheGet<T>(path) : undefined;
+    if (cached !== undefined) {
+      notifyOffline(true);
+      return cached;
+    }
+    const msg = "No connection to Veda right now, and nothing saved for this screen yet. Try again when you're online.";
+    if (!opts.quiet) report(msg, "offline");
+    throw new ApiError(msg, 0, "offline");
+  };
+
+  let res: Response;
+  try {
+    res = await fetch(`${API_URL}${path}`, {
+      method,
+      headers: body !== undefined ? { "Content-Type": "application/json" } : undefined,
+      body: body !== undefined ? JSON.stringify(body) : undefined,
+    });
+  } catch {
+    return offlineFallback();
+  }
+  if (res.status === 404 && opts.allow404) return null as T;
+  if (!res.ok) {
+    let detail = `${method} ${path} failed (${res.status})`;
+    let code: ApiErrorCode | undefined;
+    try {
+      const j = await res.json();
+      if (typeof j.detail === "string") detail = j.detail;
+      code = j.code;
+    } catch {
+      // not JSON
+    }
+    if (code === "offline" || res.status === 503) return offlineFallback();
+    if (!opts.quiet) report(detail, code);
+    throw new ApiError(detail, res.status, code);
+  }
+  const data = (await res.json()) as T;
+  if (isGet) {
+    cachePut(path, data);
+    notifyOffline(false);
+  }
+  return data;
 }
 
 const q = (params: Record<string, string | number | undefined>) => {
@@ -83,126 +126,216 @@ const q = (params: Record<string, string | number | undefined>) => {
   return str ? `?${str}` : "";
 };
 
-// ---------- Class setup ----------
+// ---------- meta (today, weeks, demo) ----------
 
-export const getClass = (): Promise<ClassSetup> =>
-  DEMO_MODE ? demo(mock.getClass) : http("GET", "/api/class");
+let metaPromise: Promise<Meta> | null = null;
+export const getMeta = (): Promise<Meta> => {
+  metaPromise ??= http<Meta>("GET", "/api/meta").catch((e) => {
+    metaPromise = null;
+    throw e;
+  });
+  return metaPromise;
+};
 
-export const saveClass = (setup: ClassSetup): Promise<ClassSetup> =>
-  DEMO_MODE ? demo(() => mock.saveClass(setup)) : http("PUT", "/api/class", setup);
+// ---------- class setup ----------
 
-export const listClassroomCourses = (): Promise<ClassroomCourse[]> =>
-  DEMO_MODE ? demo(mock.listClassroomCourses, 600) : http("GET", "/api/classroom/courses");
+export const getClass = (): Promise<ClassSetup> => http("GET", "/api/class");
+export const saveClass = (setup: ClassSetup): Promise<ClassSetup> => http("PUT", "/api/class", setup);
+export const listClassroomCourses = (): Promise<ClassroomCourse[]> => http("GET", "/api/classroom/courses");
 
-// ---------- Syllabus ----------
+// ---------- syllabus ----------
 
-export const getTopics = (grade?: Grade): Promise<Topic[]> =>
-  DEMO_MODE ? demo(() => mock.getTopics(grade)) : http("GET", `/api/topics${q({ grade })}`);
-
+export const getTopics = (grade?: Grade): Promise<Topic[]> => http("GET", `/api/topics${q({ grade })}`);
 export const saveTopics = (grade: Grade, topics: { chapter: string; title: string }[]): Promise<Topic[]> =>
-  DEMO_MODE ? demo(() => mock.saveTopics(grade, topics)) : http("PUT", `/api/topics${q({ grade })}`, { topics });
+  http("PUT", `/api/topics${q({ grade })}`, { topics });
+export const markTopicDone = (topicId: string): Promise<Topic> => http("POST", `/api/topics/${topicId}/done`);
 
-export const markTopicDone = (topicId: string): Promise<Topic> =>
-  DEMO_MODE ? demo(() => mock.markTopicDone(topicId)) : http("POST", `/api/topics/${topicId}/done`);
+// ---------- students ----------
 
-// ---------- Students ----------
+export const getStudents = (grade?: Grade): Promise<Student[]> => http("GET", `/api/students${q({ grade })}`);
 
-export const getStudents = (grade?: Grade): Promise<Student[]> =>
-  DEMO_MODE ? demo(() => mock.getStudents(grade)) : http("GET", `/api/students${q({ grade })}`);
+// ---------- dashboard ----------
 
-// ---------- Dashboard ----------
+export const getDashboard = (): Promise<Dashboard> => http("GET", "/api/dashboard");
 
-export const getDashboard = (): Promise<Dashboard> =>
-  DEMO_MODE ? demo(mock.getDashboard) : http("GET", `/api/dashboard${q({ date: TODAY })}`);
+// ---------- timetable ----------
 
-// ---------- Timetable ----------
+export const getWeekPlan = (weekStart: string): Promise<WeekPlan | null> => http("GET", `/api/plans/${weekStart}`, undefined, { allow404: true });
+export const generateWeek = (weekStart: string): Promise<WeekPlan> => http("POST", `/api/plans/${weekStart}/generate`);
+export const movePeriod = (weekStart: string, req: MoveRequest): Promise<WeekPlan> => http("POST", `/api/plans/${weekStart}/move`, req);
+export const replanWeek = (weekStart: string, req: ReplanRequest): Promise<WeekPlan> => http("POST", `/api/plans/${weekStart}/replan`, req);
+export const approveWeek = (weekStart: string): Promise<WeekPlan> => http("POST", `/api/plans/${weekStart}/approve`);
 
-export const getWeekPlan = (weekStart: string): Promise<WeekPlan | null> =>
-  DEMO_MODE ? demo(() => mock.getWeekPlan(weekStart)) : http("GET", `/api/plans/${weekStart}`);
+// ---------- attendance ----------
 
-export const generateWeek = (weekStart: string): Promise<WeekPlan> =>
-  DEMO_MODE ? demo(() => mock.generateWeek(weekStart), 900) : http("POST", `/api/plans/${weekStart}/generate`);
-
-export const movePeriod = (weekStart: string, req: MoveRequest): Promise<WeekPlan> =>
-  DEMO_MODE ? demo(() => mock.moveInWeek(weekStart, req), 60) : http("POST", `/api/plans/${weekStart}/move`, req);
-
-export const replanWeek = (weekStart: string, req: ReplanRequest): Promise<WeekPlan> =>
-  DEMO_MODE ? demo(() => mock.replanWeek(weekStart, req), 700) : http("POST", `/api/plans/${weekStart}/replan`, req);
-
-export const approveWeek = (weekStart: string): Promise<WeekPlan> =>
-  DEMO_MODE ? demo(() => mock.approveWeek(weekStart)) : http("POST", `/api/plans/${weekStart}/approve`);
-
-// ---------- Attendance ----------
-
-export const getAttendance = (date: string, grade: Grade): Promise<AttendanceSheet> =>
-  DEMO_MODE ? demo(() => mock.getAttendance(date, grade)) : http("GET", `/api/attendance${q({ date, grade })}`);
-
-export const saveAttendance = (sheet: AttendanceSheet): Promise<AttendanceSheet> =>
-  DEMO_MODE ? demo(() => mock.saveAttendance(sheet)) : http("PUT", "/api/attendance", sheet);
-
+/** date defaults to the server's today */
+export const getAttendance = (grade: Grade, date?: string): Promise<AttendanceSheet> => http("GET", `/api/attendance${q({ grade, date })}`);
+export const saveAttendance = (sheet: AttendanceSheet): Promise<AttendanceSheet> => http("PUT", "/api/attendance", sheet);
 export const readVoiceNote = (grade: Grade, transcript: string): Promise<VoiceNoteResult> =>
-  DEMO_MODE ? demo(() => mock.readVoiceNote(grade, transcript), 400) : http("POST", "/api/attendance/voice", { grade, transcript });
+  http("POST", "/api/attendance/voice", { grade, transcript });
 
-// ---------- Marks ----------
+// ---------- marks ----------
 
-export const getMarks = (grade: Grade, topicId: string): Promise<MarksSheet> =>
-  DEMO_MODE ? demo(() => mock.getMarks(grade, topicId)) : http("GET", `/api/marks${q({ grade, topicId })}`);
+export const getMarks = (grade: Grade, topicId: string): Promise<MarksSheet> => http("GET", `/api/marks${q({ grade, topicId })}`);
+export const saveMarks = (sheet: MarksSheet): Promise<MarksSheet> => http("PUT", "/api/marks", sheet);
 
-export const saveMarks = (sheet: MarksSheet): Promise<MarksSheet> =>
-  DEMO_MODE ? demo(() => mock.saveMarks(sheet)) : http("PUT", "/api/marks", sheet);
+// ---------- cards + quiz ----------
 
-// ---------- Cards + quiz ----------
+export const getDeck = (topicId: string, language: Language): Promise<CardDeck> => http("GET", `/api/decks${q({ topicId, language })}`);
+export const saveDeck = (deck: CardDeck): Promise<CardDeck> => http("PUT", `/api/decks/${deck.id}`, deck);
+export const sendDeck = (deck: CardDeck): Promise<CardDeck> => http("POST", `/api/decks/${deck.id}/send`, deck);
+/** The only way a saved deck is written again (one Sarvam call). */
+export const regenerateDeck = (deckId: string): Promise<CardDeck> => http("POST", `/api/decks/${deckId}/regenerate`);
 
-export const getDeck = (topicId: string, language: Language): Promise<CardDeck> =>
-  DEMO_MODE ? demo(() => mock.getDeck(topicId, language), 800) : http("GET", `/api/decks${q({ topicId, language })}`);
+// ---------- insights ----------
 
-export const saveDeck = (deck: CardDeck): Promise<CardDeck> =>
-  DEMO_MODE ? demo(() => mock.saveDeck(deck)) : http("PUT", `/api/decks/${deck.id}`, deck);
+export const listStudentSummaries = (grade?: Grade): Promise<StudentSummary[]> => http("GET", `/api/insights/students${q({ grade })}`);
+export const getStudentInsight = (studentId: string): Promise<StudentInsight> => http("GET", `/api/insights/students/${studentId}`);
 
-export const sendDeck = (deck: CardDeck): Promise<CardDeck> =>
-  DEMO_MODE ? demo(() => mock.sendDeck(deck), 700) : http("POST", `/api/decks/${deck.id}/send`, deck);
+// ---------- alerts ----------
 
-// ---------- Insights ----------
+export const getAlerts = (): Promise<Alert[]> => http("GET", "/api/alerts");
+export const actOnAlert = (id: string, act: AlertAction): Promise<Alert> => http("POST", `/api/alerts/${id}`, act);
 
-export const listStudentSummaries = (grade?: Grade): Promise<StudentSummary[]> =>
-  DEMO_MODE ? demo(() => mock.listStudentSummaries(grade)) : http("GET", `/api/insights/students${q({ grade })}`);
+// ---------- reports ----------
 
-export const getStudentInsight = (studentId: string): Promise<StudentInsight> =>
-  DEMO_MODE ? demo(() => mock.getStudentInsight(studentId)) : http("GET", `/api/insights/students/${studentId}`);
+export const getReport = (): Promise<Report> => http("GET", "/api/reports");
 
-// ---------- Alerts ----------
+/** Download the school-office report as a PDF file. */
+export async function downloadReportPdf(): Promise<void> {
+  let res: Response;
+  try {
+    res = await fetch(`${API_URL}/api/reports/pdf`);
+  } catch {
+    const msg = "No connection: the PDF needs the Veda server. Try again when you're online.";
+    report(msg, "offline");
+    throw new ApiError(msg, 0, "offline");
+  }
+  if (!res.ok) {
+    const j = await res.json().catch(() => ({}));
+    report(j.detail ?? `Couldn't make the PDF (${res.status}).`, j.code);
+    throw new ApiError(j.detail ?? "PDF failed", res.status, j.code);
+  }
+  const blob = await res.blob();
+  const name = /filename="([^"]+)"/.exec(res.headers.get("content-disposition") ?? "")?.[1] ?? "veda-report.pdf";
+  const a = document.createElement("a");
+  a.href = URL.createObjectURL(blob);
+  a.download = name;
+  document.body.appendChild(a);
+  a.click();
+  a.remove();
+  setTimeout(() => URL.revokeObjectURL(a.href), 10_000);
+}
 
-export const getAlerts = (): Promise<Alert[]> =>
-  DEMO_MODE ? demo(mock.getAlerts) : http("GET", "/api/alerts");
+// ---------- Google Classroom (real mode) ----------
 
-export const actOnAlert = (id: string, act: AlertAction): Promise<Alert> =>
-  DEMO_MODE ? demo(() => mock.actOnAlert(id, act)) : http("POST", `/api/alerts/${id}`, act);
+export const createClassroomCourse = (grade: Grade): Promise<ClassroomCourse> => http("POST", "/api/classroom/courses", { grade });
+export const importRosters = (): Promise<ImportResult> => http("POST", "/api/classroom/import-rosters");
+export const getRoster = (): Promise<ImportResult> => http("GET", "/api/students/roster");
+export const syncClassroomGrades = (): Promise<SyncResult> => http("POST", "/api/classroom/sync");
 
-// ---------- Reports ----------
+// ---------- student side (shared family phone) ----------
 
-export const getReport = (): Promise<Report> =>
-  DEMO_MODE ? demo(mock.getReport) : http("GET", "/api/reports");
+const CLASS_KEY = "veda-class-id";
+/** The class this phone belongs to: from the teacher's link (?class=…) or remembered from last time. */
+export function studentClassId(): string | undefined {
+  if (typeof window === "undefined") return undefined;
+  const fromUrl = new URLSearchParams(window.location.search).get("class");
+  try {
+    if (fromUrl) localStorage.setItem(CLASS_KEY, fromUrl);
+    return fromUrl ?? localStorage.getItem(CLASS_KEY) ?? undefined;
+  } catch {
+    return fromUrl ?? undefined;
+  }
+}
 
-// ---------- Student side ----------
-
-export const listProfiles = (): Promise<StudentProfile[]> =>
-  DEMO_MODE ? demo(mock.listProfiles) : http("GET", "/api/student/profiles");
-
+export const listProfiles = (classId?: string): Promise<StudentProfile[]> => http("GET", `/api/student/profiles${q({ classId })}`);
 export const studentLogin = (studentId: string, pin: string): Promise<boolean> =>
-  DEMO_MODE
-    ? demo(() => mock.studentLogin(studentId, pin), 300)
-    : http<{ ok: boolean }>("POST", "/api/student/login", { studentId, pin }).then((r) => r.ok);
+  http<{ ok: boolean }>("POST", "/api/student/login", { studentId, pin }).then((r) => r.ok);
+export const getStudentToday = (studentId: string): Promise<StudentToday> => http("GET", `/api/student/${studentId}/today`);
+export const askTutor = (req: TutorRequest): Promise<TutorReply> => http("POST", "/api/tutor", req);
 
-export const getStudentToday = (studentId: string): Promise<StudentToday> =>
-  DEMO_MODE ? demo(() => mock.getStudentToday(studentId)) : http("GET", `/api/student/${studentId}/today`);
+// Quizzes finished offline wait here and are sent when the phone is back online.
+const OUTBOX = "veda-quiz-outbox";
+type Pending = { studentId: string; sub: QuizSubmission };
+function outbox(): Pending[] {
+  try {
+    return JSON.parse(localStorage.getItem(OUTBOX) ?? "[]");
+  } catch {
+    return [];
+  }
+}
+function setOutbox(items: Pending[]) {
+  try {
+    localStorage.setItem(OUTBOX, JSON.stringify(items));
+  } catch {
+    // ignore
+  }
+}
 
-export const submitQuiz = (studentId: string, sub: QuizSubmission): Promise<QuizResult> =>
-  DEMO_MODE ? demo(() => mock.submitQuiz(studentId, sub)) : http("POST", `/api/student/${studentId}/quiz`, sub);
+/** Submit a quiz; offline, the score is worked out on the phone and the answers are sent later. */
+export async function submitQuiz(studentId: string, sub: QuizSubmission, deck?: CardDeck): Promise<QuizResult & { queued?: boolean }> {
+  try {
+    return await http<QuizResult>("POST", `/api/student/${studentId}/quiz`, sub, { quiet: true });
+  } catch (e) {
+    if (!(e instanceof ApiError) || e.code !== "offline" || !deck) throw e;
+    setOutbox([...outbox(), { studentId, sub }]);
+    const correct = deck.quiz.filter((qq, i) => sub.answers[i] === qq.answerIndex).length;
+    return { correct, total: deck.quiz.length, percent: Math.round((100 * correct) / deck.quiz.length), queued: true };
+  }
+}
 
-export const askTutor = (req: TutorRequest): Promise<TutorReply> =>
-  DEMO_MODE ? demo(() => mock.askTutor(req), 900) : http("POST", "/api/tutor", req);
+/** Send quizzes that were finished offline. Returns how many were sent. */
+export async function flushQuizOutbox(): Promise<number> {
+  const items = outbox();
+  let sent = 0;
+  const left: Pending[] = [];
+  for (const it of items) {
+    try {
+      await http("POST", `/api/student/${it.studentId}/quiz`, it.sub, { quiet: true });
+      sent++;
+    } catch {
+      left.push(it);
+    }
+  }
+  setOutbox(left);
+  return sent;
+}
 
-// ---------- Demo only ----------
+// ---------- voice (VOICE_PROVIDER=sarvam) ----------
 
-export const DEMO_PIN = mock.DEMO_PIN;
-export const resetDemo = (): void => resetMock();
+/** Saaras speech-to-text. Audio must be under 30 seconds. */
+export async function speechToText(audio: Blob, language: Language | "unknown", seconds: number): Promise<{ transcript: string; languageCode?: string | null }> {
+  const form = new FormData();
+  const ext = audio.type.includes("wav") ? "wav" : audio.type.includes("ogg") ? "ogg" : audio.type.includes("mp4") ? "m4a" : "webm";
+  form.append("file", audio, `speech.${ext}`);
+  form.append("language", language);
+  form.append("seconds", String(Math.round(seconds * 10) / 10));
+  let res: Response;
+  try {
+    res = await fetch(`${API_URL}/api/voice/stt`, { method: "POST", body: form });
+  } catch {
+    const msg = "No connection: speaking needs the internet. You can type instead.";
+    report(msg, "offline");
+    throw new ApiError(msg, 0, "offline");
+  }
+  if (!res.ok) {
+    const j = await res.json().catch(() => ({}));
+    const detail = (j.detail as string) ?? `Speech-to-text failed (${res.status})`;
+    report(detail, j.code);
+    throw new ApiError(detail, res.status, j.code);
+  }
+  return res.json();
+}
+
+/** Bulbul text-to-speech (cached on the server by exact text). */
+export const textToSpeech = (text: string, language: Language): Promise<{ audio: string; mime: string; cached: boolean }> =>
+  http("POST", "/api/voice/tts", { text, language });
+
+// ---------- admin ----------
+
+export const getAiUsage = (): Promise<AiUsage> => http("GET", "/api/admin/ai-usage");
+
+// ---------- demo only ----------
+
+export const resetDemo = (): Promise<unknown> => http("POST", "/api/demo/reset");

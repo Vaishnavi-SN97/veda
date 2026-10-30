@@ -1,5 +1,6 @@
 import type { Metadata, Viewport } from "next";
 import { Onest, Oxanium } from "next/font/google";
+import { ApiStatus } from "@/components/ApiStatus";
 import { DemoBanner } from "@/components/DemoBanner";
 import { ServiceWorker } from "@/components/ServiceWorker";
 import { THEME_BOOT_SCRIPT } from "@/components/themeScript";
@@ -30,6 +31,7 @@ export default function RootLayout({ children }: LayoutProps<"/">) {
       <body className="min-h-full flex flex-col">
         <DemoBanner />
         {children}
+        <ApiStatus />
         <ServiceWorker />
       </body>
     </html>

@@ -11,7 +11,11 @@ The FastAPI backend implements exactly this. The frontend calls it only through
 - Auth: teacher via Google (NextAuth session → backend verifies the Google ID token).
   Student routes use the short-lived token from `/api/student/login`.
 - "Not found" returns **404** (the frontend treats it as `null`, e.g. no plan for that week).
-- With `DEMO_MODE=true` the backend serves seeded data and skips Google auth.
+  Errors carry a plain-language `{"detail": "..."}` the frontend shows as-is; an impossible
+  timetable returns **422**.
+- With `DEMO_MODE=true` the backend serves seeded data and skips Google auth. "Today" is fixed
+  to 2026-10-30; the frontend reads it from `GET /api/meta`, never from its own clock.
+- Interactive docs of the running API: http://localhost:8000/docs
 
 ## Rules the backend must keep
 
@@ -27,6 +31,12 @@ The FastAPI backend implements exactly this. The frontend calls it only through
 
 | Method | Path | Body | Returns | Notes |
 |---|---|---|---|---|
+| GET | `/api/meta` | | `Meta` | `{demoMode, today, thisWeek, nextWeek, demoPin, sarvamEnabled, voiceProvider}` |
+| POST | `/api/decks/{id}/regenerate` | | `CardDeck` | the ONLY way a saved deck is rewritten (1 Sarvam call) |
+| POST | `/api/voice/stt` | multipart `file` (WAV preferred, ≤30 s), `language` (en/kn/hi/unknown), `seconds` | `{transcript, languageCode}` | Saaras; 409 unless `VOICE_PROVIDER=sarvam` |
+| POST | `/api/voice/tts` | `{text, language}` | `{audio (base64), mime, cached}` | Bulbul; cached by exact text; 409 unless `VOICE_PROVIDER=sarvam` |
+| GET | `/api/admin/ai-usage` | | `AiUsage` | running Sarvam call count, estimated ₹, by model, recent calls |
+| POST | `/api/demo/reset` | | summary | demo only: re-runs the seed (~30 s) |
 | GET | `/api/class` | | `ClassSetup` | |
 | PUT | `/api/class` | `ClassSetup` | `ClassSetup` | setup wizard "Save and finish" |
 | GET | `/api/classroom/courses` | | `ClassroomCourse[]` | teacher's Google Classroom courses |
@@ -35,12 +45,12 @@ The FastAPI backend implements exactly this. The frontend calls it only through
 | POST | `/api/topics/{id}/done` | | `Topic` | sets `done`, `doneOn`; next topic becomes `in_progress` |
 | GET | `/api/students?grade=` | | `Student[]` | roster synced from Classroom |
 | GET | `/api/dashboard?date=` | | `Dashboard` | |
-| GET | `/api/plans/{weekStart}` | | `WeekPlan` or 404 | `weekStart` is a Monday |
+| GET | `/api/plans/{weekStart}` | | `WeekPlan` or `null` | `weekStart` is a Monday; `null` = no plan yet |
 | POST | `/api/plans/{weekStart}/generate` | | `WeekPlan` | CP-SAT; uses accepted-alert priorities; status `draft` |
 | POST | `/api/plans/{weekStart}/move` | `MoveRequest` | `WeekPlan` | swaps two periods' content; status back to `draft` |
 | POST | `/api/plans/{weekStart}/replan` | `ReplanRequest` | `WeekPlan` | marks changed periods `changed: true`, appends a note |
 | POST | `/api/plans/{weekStart}/approve` | | `WeekPlan` | status `approved`, clears `changed` |
-| GET | `/api/attendance?date=&grade=` | | `AttendanceSheet` | unmarked students default to `present` |
+| GET | `/api/attendance?grade=&date=` | | `AttendanceSheet` | date optional (server's today); unmarked students default to `present` |
 | PUT | `/api/attendance` | `AttendanceSheet` | `AttendanceSheet` | `submitted: true` |
 | POST | `/api/attendance/voice` | `{ grade, transcript }` | `VoiceNoteResult` | later: multipart audio → Saaras → transcript |
 | GET | `/api/marks?grade=&topicId=` | | `MarksSheet` | `score: null` = not entered |
@@ -81,19 +91,21 @@ VoiceNoteResult { transcript, absentStudentIds: string[] }
 MarksSheet      { grade, topicId, testName, date, maxScore, entries: {studentId, topicId, score|null, maxScore}[] }
 
 CardDeck        { id, topicId, topicTitle, grade, language, cards: TopicCard[], quiz: QuizQuestion[],
-                  status: "draft"|"sent", cached, sentAt? }
+                  status: "draft"|"sent", cached, sentAt?, placeholder? (true until Sarvam writes it) }
 TopicCard       { id, title, body, example? }
 QuizQuestion    { id, question, options: string[4], answerIndex, explanation? }
 
 StudentSummary  { student, tag, lastQuizPercent|null, attendancePercent }
 StudentInsight  { student, attendancePercent, daysMissed, mastery: {topicId, topicTitle, chapter, percent}[],
                   quizScores: {weekLabel, percent}[], tutorMinutes: {weekLabel, percent(=minutes)}[],
-                  testMarks: {testName, score, maxScore, date}[], tag, tagReason }
+                  testMarks: {testName, score, maxScore, date}[], tag, tagReason, riskScore }
   tag = "on_track" | "didnt_study" | "studied_but_confused"
   rule: quiz falling 3 weeks or latest < 50% → confused if tutor minutes last week ≥ 20, else didnt_study
+  weekLabel is the week's Monday, e.g. "5 Oct"
 
 Alert           { id, grade, studentId?, studentName?, title, reasons: string[], suggestion,
-                  severity: "high"|"medium"|"low", status: "open"|"accepted"|"dismissed", createdAt }
+                  severity: "high"|"medium"|"low", status: "open"|"accepted"|"dismissed", createdAt,
+                  riskScore?, changesPlan (accepting adds an action to next week's plan) }
 AlertAction     { action: "accept" } | { action: "edit", suggestion } | { action: "dismiss" }
 
 Dashboard       { date, dayLabel, todayPeriods: Period[], breaks, planStatus: "draft"|"approved"|"none",
@@ -106,12 +118,28 @@ StudentProfile  { student, hasPin }
 StudentToday    { student, decks: CardDeck[], completedDeckIds: string[] }
 QuizSubmission  { deckId, answers: number[] }      QuizResult { correct, total, percent }
 TutorRequest    { studentId, topicId?, language, history: {role: "student"|"vidya", text}[], message }
-TutorReply      { text, suggestions: string[] }
+TutorReply      { text, suggestions: string[], topicId?, assessment?: "correct"|"incorrect"|"none", placeholder? }
+                  (a "correct"/"incorrect" assessment of the child's answer updates mastery for topicId)
+Alert also has  aiSummary? (Sarvam's one friendly sentence; suggestion becomes Sarvam's action unless the teacher edited it)
 ```
+
+## Risk score (backend/app/risk.py)
+
+0–100, the sum of four parts, each shown to the teacher as a reason:
+
+| Part | Points |
+|---|---|
+| Quiz trend | 8 per consecutive weekly drop (max 3 → 24), +11 if latest quiz < 50% |
+| Test marks | latest test < 40% → 25, < 60% → 12 |
+| Attendance | 5 per day missed beyond the first, last 4 weeks, max 25 |
+| Tutor | only while quiz or test points > 0: 0 min with Vidya last week → 15, < 10 min → 8 |
+
+Severity: 60+ high, 35+ medium, 20+ low; under 20 no alert. A separate syllabus-pace alert fires
+when a grade is 3+ topics behind an even pace from 1 Jun to 15 Dec.
 
 ## Demo seed (DEMO_MODE) the backend must reproduce
 
-Same story as `frontend/lib/mock/seed.ts`: 25 students (G3: 8, G4: 9, G5: 8), school days
+Implemented in `backend/app/demo_seed.py` on top of the imported textbook topics: 25 students (G3: 8, G4: 9, G5: 8), school days
 Mon–Fri 5–30 Oct 2026 (today = Fri 30 Oct, attendance not yet taken), weekly quizzes,
 tutor minutes and unit tests. **Ravi (Grade 4)**: fraction quizzes 78 → 62 → 45 → 30%,
 absent 13, 14, 20, 21 Oct, 6/20 in the Fractions class test, tutor minutes rising 20 → 42

@@ -8,9 +8,6 @@ import type { Alert } from "@/lib/types";
 import { Button, Card, GradeChip, Loading, Notice, PageHeader, Segmented, cx } from "@/components/ui";
 import { useLoad } from "@/components/useLoad";
 
-// alerts whose suggestion asks the planner for extra teacher time
-const PLAN_ALERTS = ["alert-ravi-fractions", "alert-g5-syllabus"];
-
 export default function AlertsPage() {
   const { data: alerts, setData } = useLoad(getAlerts);
   const [tab, setTab] = useState<"open" | "handled">("open");
@@ -43,7 +40,7 @@ export default function AlertsPage() {
         <div className="mb-5">
           <Notice tone={done.status === "accepted" ? "good" : "info"}>
             {done.status === "accepted" ? "Accepted" : "Dismissed"}: {done.title}.{" "}
-            {done.status === "accepted" && PLAN_ALERTS.includes(done.id) && (
+            {done.status === "accepted" && done.changesPlan && (
               <Link href="/teacher/planner?next=1" className="font-medium underline underline-offset-4">
                 Next week&apos;s plan will include it.
               </Link>
@@ -75,13 +72,17 @@ function AlertCard({ alert: a, onChange }: { alert: Alert; onChange: (a: Alert) 
 
   async function act(kind: "accept" | "dismiss" | "edit") {
     setBusy(kind);
-    const next = await actOnAlert(a.id, kind === "edit" ? { action: "edit", suggestion: draft } : { action: kind });
-    onChange(next);
-    setBusy(null);
-    setEditing(false);
+    try {
+      onChange(await actOnAlert(a.id, kind === "edit" ? { action: "edit", suggestion: draft } : { action: kind }));
+      setEditing(false);
+    } catch {
+      // error banner explains
+    } finally {
+      setBusy(null);
+    }
   }
 
-  const changesPlan = PLAN_ALERTS.includes(a.id);
+  const changesPlan = !!a.changesPlan;
 
   return (
     <Card className={cx(a.status === "dismissed" && "opacity-60")}>
@@ -95,6 +96,8 @@ function AlertCard({ alert: a, onChange }: { alert: Alert; onChange: (a: Alert) 
           <p className="mt-1 text-xs uppercase tracking-wider text-ink-3">{a.severity} priority</p>
         </div>
       </div>
+
+      {a.aiSummary && <p className="mt-4 text-[16px] leading-relaxed">{a.aiSummary}</p>}
 
       <div className="mt-4">
         <p className="mb-2 text-sm font-medium text-ink-2">Why Veda noticed</p>

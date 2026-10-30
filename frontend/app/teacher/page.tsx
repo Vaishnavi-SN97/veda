@@ -48,7 +48,7 @@ export default function DashboardPage() {
                   <AlertTriangle className={cx("mt-0.5 size-5 shrink-0", a.severity === "high" ? "text-bad" : "text-warn")} strokeWidth={1.75} aria-hidden />
                   <div>
                     <p className="font-medium">{a.title}</p>
-                    <p className="mt-1 line-clamp-2 text-sm text-ink-3">{a.reasons[0]}</p>
+                    <p className="mt-1 line-clamp-2 text-sm text-ink-3">{a.aiSummary ?? a.reasons[0]}</p>
                   </div>
                 </div>
               </Link>

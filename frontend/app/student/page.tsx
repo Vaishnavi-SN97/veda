@@ -3,7 +3,7 @@
 import { useRouter } from "next/navigation";
 import { useState } from "react";
 import { ArrowLeft, Delete } from "lucide-react";
-import { DEMO_MODE, DEMO_PIN, listProfiles, studentLogin } from "@/lib/api";
+import { getMeta, listProfiles, studentClassId, studentLogin } from "@/lib/api";
 import type { Grade, Student } from "@/lib/types";
 import { Avatar } from "@/components/Avatar";
 import { Loading, Segmented, cx } from "@/components/ui";
@@ -11,7 +11,8 @@ import { useLoad } from "@/components/useLoad";
 import { setStudent } from "@/components/studentSession";
 
 export default function StudentPicker() {
-  const { data: profiles } = useLoad(listProfiles);
+  // the class comes from the teacher's link (?class=…), remembered on this phone; demo mode needs none
+  const { data: profiles } = useLoad(() => listProfiles(studentClassId()));
   const [grade, setGrade] = useState<Grade>(4);
   const [picked, setPicked] = useState<Student | null>(null);
 
@@ -47,6 +48,7 @@ export default function StudentPicker() {
 
 function PinPad({ student, onBack }: { student: Student; onBack: () => void }) {
   const router = useRouter();
+  const { data: meta } = useLoad(getMeta);
   const [pin, setPin] = useState("");
   const [wrong, setWrong] = useState(false);
   const [checking, setChecking] = useState(false);
@@ -58,7 +60,7 @@ function PinPad({ student, onBack }: { student: Student; onBack: () => void }) {
     setPin(next);
     if (next.length === 4) {
       setChecking(true);
-      const ok = await studentLogin(student.id, next);
+      const ok = await studentLogin(student.id, next).catch(() => false);
       setChecking(false);
       if (ok) {
         setStudent(student);
@@ -98,7 +100,7 @@ function PinPad({ student, onBack }: { student: Student; onBack: () => void }) {
           <Delete className="size-7" aria-hidden />
         </button>
       </div>
-      {DEMO_MODE && <p className="mt-6 text-sm text-ink-3">Demo PIN for everyone: {DEMO_PIN}</p>}
+      {meta?.demoPin && <p className="mt-6 text-sm text-ink-3">Demo PIN for everyone: {meta.demoPin}</p>}
     </div>
   );
 }

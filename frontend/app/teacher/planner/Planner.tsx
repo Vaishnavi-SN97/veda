@@ -2,8 +2,8 @@
 
 import { use, useEffect, useState } from "react";
 import { ArrowLeftRight, CalendarPlus, Check, CloudRain, Info, Layers, ShieldAlert, UserX, Wand2, X } from "lucide-react";
-import { NEXT_WEEK, THIS_WEEK, approveWeek, generateWeek, getWeekPlan, movePeriod, replanWeek } from "@/lib/api";
-import type { Period, ReplanReason, WeekPlan } from "@/lib/types";
+import { approveWeek, generateWeek, getMeta, getWeekPlan, movePeriod, replanWeek } from "@/lib/api";
+import type { Meta, Period, ReplanReason, WeekPlan } from "@/lib/types";
 import { MODE_ICON, PeriodRow } from "@/components/PeriodView";
 import { Button, Card, GradeChip, Loading, Notice, PageHeader, Segmented, cx } from "@/components/ui";
 
@@ -21,7 +21,8 @@ function fmtWeek(iso: string) {
 
 export default function Planner({ searchParams }: { searchParams: Promise<Record<string, string | string[] | undefined>> }) {
   const params = use(searchParams);
-  const [week, setWeek] = useState(params.next ? NEXT_WEEK : THIS_WEEK);
+  const [meta, setMeta] = useState<Meta | null>(null);
+  const [week, setWeek] = useState<string | null>(null);
   const [plan, setPlan] = useState<WeekPlan | null | undefined>(undefined);
   const [busy, setBusy] = useState<string | null>(null);
   const [day, setDay] = useState(1);
@@ -31,20 +32,33 @@ export default function Planner({ searchParams }: { searchParams: Promise<Record
   const [replanOpen, setReplanOpen] = useState(false);
   const [flash, setFlash] = useState<string | null>(null);
 
+  // the dashboard's "Generate my week" links here with ?next=1
   useEffect(() => {
-    getWeekPlan(week).then(setPlan);
+    getMeta().then((m) => {
+      setMeta(m);
+      setWeek(params.next ? m.nextWeek : m.thisWeek);
+    });
+  }, [params.next]);
+
+  useEffect(() => {
+    if (week) getWeekPlan(week).then(setPlan);
   }, [week]);
 
   async function run(label: string, fn: () => Promise<WeekPlan>, message?: string) {
     setBusy(label);
-    const p = await fn();
-    setPlan(p);
-    setBusy(null);
-    if (message) setFlash(message);
+    setFlash(null);
+    try {
+      setPlan(await fn());
+      if (message) setFlash(message);
+    } catch {
+      // the error banner shows the server's reason (e.g. the rules can't all be met)
+    } finally {
+      setBusy(null);
+    }
   }
 
   async function swap(from: string, to: string) {
-    if (from === to) return;
+    if (from === to || !week) return;
     setPicked(null);
     await run("move", () => movePeriod(week, { fromPeriodId: from, toPeriodId: to }), "Periods swapped. Approve the plan again when you're happy.");
   }
@@ -68,15 +82,17 @@ export default function Planner({ searchParams }: { searchParams: Promise<Record
       />
 
       <div className="mb-5 flex flex-wrap items-center gap-3">
-        <Segmented
-          label="Week"
-          value={week}
-          onChange={(w) => { setWeek(w); setPlan(undefined); setFlash(null); setMoving(false); setPicked(null); }}
-          options={[
-            { value: THIS_WEEK, label: `This week · ${fmtWeek(THIS_WEEK)}` },
-            { value: NEXT_WEEK, label: `Next week · ${fmtWeek(NEXT_WEEK)}` },
-          ]}
-        />
+        {meta && week && (
+          <Segmented
+            label="Week"
+            value={week}
+            onChange={(w) => { setWeek(w); setPlan(undefined); setFlash(null); setMoving(false); setPicked(null); }}
+            options={[
+              { value: meta.thisWeek, label: `This week · ${fmtWeek(meta.thisWeek)}` },
+              { value: meta.nextWeek, label: `Next week · ${fmtWeek(meta.nextWeek)}` },
+            ]}
+          />
+        )}
         {plan && (
           <span className={cx("rounded-full border px-3 py-1 text-sm", plan.status === "approved" ? "border-good/50 text-good" : "border-warn/50 text-warn")}>
             {plan.status === "approved" ? "Approved" : "Draft: not approved yet"}
@@ -93,7 +109,7 @@ export default function Planner({ searchParams }: { searchParams: Promise<Record
           <p className="mt-2 text-ink-2">
             Veda will build a draft from your syllabus, school hours and any alerts you accepted. Every lesson period, you teach one grade while the other two get clear self work, peer work or reading.
           </p>
-          <Button variant="primary" size="lg" className="mt-5 w-full sm:w-auto" icon={<Wand2 className="size-5" aria-hidden />} loading={busy === "gen"} onClick={() => run("gen", () => generateWeek(week), "Draft ready. Check it, move anything you like, then approve.")}>
+          <Button variant="primary" size="lg" className="mt-5 w-full sm:w-auto" icon={<Wand2 className="size-5" aria-hidden />} loading={busy === "gen"} onClick={() => run("gen", () => generateWeek(week!), "Draft ready. Check it, move anything you like, then approve.")}>
             Generate my week
           </Button>
         </Card>
@@ -102,7 +118,7 @@ export default function Planner({ searchParams }: { searchParams: Promise<Record
       {plan && (
         <>
           <div className="no-print mb-4 flex flex-wrap gap-2">
-            <Button icon={<Wand2 className="size-5" aria-hidden />} loading={busy === "gen"} onClick={() => run("gen", () => generateWeek(week), "New draft generated.")}>
+            <Button icon={<Wand2 className="size-5" aria-hidden />} loading={busy === "gen"} onClick={() => run("gen", () => generateWeek(week!), "New draft generated.")}>
               Generate my week
             </Button>
             <Button
@@ -120,7 +136,7 @@ export default function Planner({ searchParams }: { searchParams: Promise<Record
               icon={<Check className="size-5" aria-hidden />}
               disabled={plan.status === "approved"}
               loading={busy === "approve"}
-              onClick={() => run("approve", () => approveWeek(week), "Plan approved. Today's screen now follows it.")}
+              onClick={() => run("approve", () => approveWeek(week!), "Plan approved. Today's screen now follows it.")}
               className="sm:ml-auto"
             >
               {plan.status === "approved" ? "Approved" : "Approve"}
@@ -213,7 +229,7 @@ export default function Planner({ searchParams }: { searchParams: Promise<Record
           onSubmit={async (reason, d, from) => {
             setReplanOpen(false);
             setDay(d);
-            await run("replan", () => replanWeek(week, { reason, day: d, fromPeriodIndex: from }), "Plan adjusted. Changed periods are marked. Approve when ready.");
+            await run("replan", () => replanWeek(week!, { reason, day: d, fromPeriodIndex: from }), "Plan adjusted. Changed periods are marked. Approve when ready.");
           }}
         />
       )}

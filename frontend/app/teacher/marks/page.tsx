@@ -1,11 +1,41 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { Check, Save } from "lucide-react";
-import { getMarks, getStudents, getTopics, saveMarks } from "@/lib/api";
+import { Check, RefreshCw, Save } from "lucide-react";
+import { getMarks, getStudents, getTopics, saveMarks, syncClassroomGrades } from "@/lib/api";
 import type { Grade, MarksSheet, Student, Topic } from "@/lib/types";
 import { Avatar } from "@/components/Avatar";
 import { Button, Card, GradePicker, Loading, Notice, PageHeader, cx } from "@/components/ui";
+import { useMeta } from "@/components/useMeta";
+
+function ClassroomSync({ onDone }: { onDone: () => void }) {
+  const meta = useMeta();
+  const [busy, setBusy] = useState(false);
+  const [msg, setMsg] = useState<string | null>(null);
+  if (!meta || meta.demoMode) return null;
+  return (
+    <div className="mb-5 flex flex-wrap items-center gap-3">
+      <Button
+        icon={<RefreshCw className="size-5" aria-hidden />}
+        loading={busy}
+        onClick={async () => {
+          setBusy(true);
+          try {
+            setMsg((await syncClassroomGrades()).message);
+            onDone();
+          } catch {
+            // banner explains
+          } finally {
+            setBusy(false);
+          }
+        }}
+      >
+        Sync grades with Classroom
+      </Button>
+      {msg && <span className="text-sm text-good">{msg}</span>}
+    </div>
+  );
+}
 
 export default function MarksPage() {
   const [grade, setGrade] = useState<Grade>(4);
@@ -53,9 +83,14 @@ export default function MarksPage() {
   async function save() {
     if (!sheet) return;
     setSaving(true);
-    setSheet(await saveMarks(sheet));
-    setSaving(false);
-    setSaved(true);
+    try {
+      setSheet(await saveMarks(sheet));
+      setSaved(true);
+    } catch {
+      // error banner explains
+    } finally {
+      setSaving(false);
+    }
   }
 
   const entered = sheet?.entries.filter((e) => e.score !== null) ?? [];
@@ -64,6 +99,8 @@ export default function MarksPage() {
   return (
     <div className="max-w-3xl">
       <PageHeader title="Add marks" subtitle="Test marks per grade and topic. Low scores feed the early-warning alerts." />
+
+      <ClassroomSync onDone={() => topicId && getMarks(grade, topicId).then(setSheet)} />
 
       <div className="mb-4"><GradePicker value={grade} onChange={changeGrade} /></div>
 

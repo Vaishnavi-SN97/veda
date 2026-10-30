@@ -7,6 +7,67 @@ export const GRADES: Grade[] = [3, 4, 5];
 
 export type Language = "en" | "kn" | "hi";
 
+// ---------- Meta ----------
+
+export interface Meta {
+  demoMode: boolean;
+  today: string; // the server's "today" (fixed to 2026-10-30 in demo mode)
+  thisWeek: string; // Monday
+  nextWeek: string;
+  demoPin: string | null;
+  sarvamEnabled: boolean;
+  voiceProvider: "browser" | "sarvam"; // VOICE_PROVIDER in the root .env
+  classId: string | null; // demo class in demo mode
+}
+
+export interface RosterStudent {
+  student: Student;
+  pin?: string | null; // 4-digit PIN for the family phone (teacher-only view)
+  email?: string | null;
+}
+
+export interface ImportResult {
+  added: number;
+  updated: number;
+  students: RosterStudent[];
+  studentLink: string; // open on the family phone: /student?class=…
+}
+
+export interface SyncResult {
+  pushed: number;
+  pulled: number;
+  coursework: number;
+  message: string;
+}
+
+export interface AiCallRow {
+  id: number;
+  createdAt: string;
+  model: string;
+  purpose: string;
+  ok: boolean;
+  error?: string | null;
+  inputTokens?: number | null;
+  outputTokens?: number | null;
+  inputChars: number;
+  audioSeconds?: number | null;
+  latencyMs?: number | null;
+  estCostInr: number;
+}
+
+export interface AiUsage {
+  sarvamEnabled: boolean;
+  voiceProvider: string;
+  totalCalls: number; // real Sarvam calls, the running count
+  failedCalls: number;
+  cacheHits: number;
+  placeholders: number;
+  estCostInr: number;
+  budgetInr: number;
+  byModel: { model: string; calls: number; failed: number; estCostInr: number }[];
+  recent: AiCallRow[];
+}
+
 // ---------- Class setup ----------
 
 export interface ClassroomCourse {
@@ -197,6 +258,7 @@ export interface CardDeck {
   status: "draft" | "sent";
   cached: boolean; // true = no AI call was made to produce this
   sentAt?: string;
+  placeholder?: boolean; // true = stand-in text until Sarvam writes the real cards
 }
 
 // ---------- Insights ----------
@@ -225,6 +287,7 @@ export interface StudentInsight {
   testMarks: { testName: string; score: number; maxScore: number; date: string }[];
   tag: StudentTag;
   tagReason: string;
+  riskScore?: number; // 0-100, see backend/app/risk.py
 }
 
 export interface StudentSummary {
@@ -249,6 +312,9 @@ export interface Alert {
   severity: "high" | "medium" | "low";
   status: AlertStatus;
   createdAt: string;
+  riskScore?: number | null;
+  changesPlan?: boolean; // accepting adds an action to next week's plan
+  aiSummary?: string | null; // Sarvam's one friendly sentence about the reasons
 }
 
 export type AlertAction =
@@ -328,4 +394,7 @@ export interface TutorRequest {
 export interface TutorReply {
   text: string;
   suggestions: string[];
+  topicId?: string | null;
+  assessment?: "correct" | "incorrect" | "none";
+  placeholder?: boolean;
 }

@@ -1,7 +1,8 @@
 "use client";
 
-import { Printer } from "lucide-react";
-import { getClass, getReport } from "@/lib/api";
+import { useState } from "react";
+import { FileDown } from "lucide-react";
+import { downloadReportPdf, getClass, getReport } from "@/lib/api";
 import { Button, Card, GradeChip, Loading, PageHeader, Progress, SectionTitle, TagChip, cx } from "@/components/ui";
 import { useLoad } from "@/components/useLoad";
 
@@ -11,8 +12,20 @@ function fmt(iso: string) {
 
 export default function ReportsPage() {
   const { data } = useLoad(() => Promise.all([getReport(), getClass()]));
+  const [exporting, setExporting] = useState(false);
   if (!data) return <Loading />;
   const [r, cls] = data;
+
+  async function exportPdf() {
+    setExporting(true);
+    try {
+      await downloadReportPdf();
+    } catch {
+      // banner explains
+    } finally {
+      setExporting(false);
+    }
+  }
 
   return (
     <div className="max-w-4xl">
@@ -20,12 +33,12 @@ export default function ReportsPage() {
         title="Reports"
         subtitle={`${cls.name} · ${fmt(r.from)} to ${fmt(r.to)} · ${r.schoolDays} school days`}
         action={
-          <Button variant="primary" className="no-print" icon={<Printer className="size-5" aria-hidden />} onClick={() => window.print()}>
+          <Button variant="primary" className="no-print" icon={<FileDown className="size-5" aria-hidden />} loading={exporting} onClick={exportPdf}>
             Export PDF
           </Button>
         }
       />
-      <p className="no-print -mt-3 mb-6 text-sm text-ink-3">Export opens the print dialog. Choose “Save as PDF”.</p>
+      <p className="no-print -mt-3 mb-6 text-sm text-ink-3">Downloads a PDF for the school office: attendance, progress and syllabus coverage.</p>
 
       <div className="mb-6 grid gap-4 md:grid-cols-2">
         <Card>

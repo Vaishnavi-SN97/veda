@@ -2,12 +2,14 @@
 
 import { useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
-import { ArrowLeft, ArrowRight, Check, Link2, Plus, Trash2 } from "lucide-react";
-import { getClass, getTopics, listClassroomCourses, saveClass, saveTopics } from "@/lib/api";
-import type { BreakSlot, ClassSetup, ClassroomCourse, Grade } from "@/lib/types";
+import { ArrowLeft, ArrowRight, Check, Copy, Link2, Plus, Trash2, Users } from "lucide-react";
+import { createClassroomCourse, getClass, getTopics, importRosters, listClassroomCourses, saveClass, saveTopics } from "@/lib/api";
+import type { BreakSlot, ClassSetup, ClassroomCourse, Grade, ImportResult } from "@/lib/types";
+import { Avatar } from "@/components/Avatar";
 import { Button, Card, GradeChip, GradePicker, Loading, Notice, PageHeader, cx } from "@/components/ui";
+import { useMeta } from "@/components/useMeta";
 
-const STEPS = ["Class", "Google Classroom", "School hours", "Breaks", "Syllabus"];
+const STEPS = ["Class", "Google Classroom", "School hours", "Breaks", "Syllabus", "Students"];
 const DAY_NAMES = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
 const field = "min-h-12 w-full rounded-xl border border-line bg-bg px-3 text-ink placeholder:text-ink-3";
 
@@ -22,6 +24,11 @@ export default function SetupPage() {
   const [topics, setTopics] = useState<Record<Grade, TopicRow[]> | null>(null);
   const [topicGrade, setTopicGrade] = useState<Grade>(3);
   const [saving, setSaving] = useState(false);
+  const [creating, setCreating] = useState<Grade | null>(null);
+  const [importing, setImporting] = useState(false);
+  const [roster, setRoster] = useState<ImportResult | null>(null);
+  const [copied, setCopied] = useState(false);
+  const meta = useMeta();
 
   useEffect(() => {
     Promise.all([getClass(), getTopics()]).then(([c, t]) => {
@@ -40,16 +47,56 @@ export default function SetupPage() {
 
   async function connect() {
     setConnecting(true);
-    setCourses(await listClassroomCourses());
-    setConnecting(false);
+    try {
+      setCourses(await listClassroomCourses());
+    } catch {
+      // the banner explains (signed out, Classroom API off, no internet)
+    } finally {
+      setConnecting(false);
+    }
+  }
+
+  function linkCourse(g: Grade, course: ClassroomCourse | null) {
+    if (!setup) return;
+    update({ linkedCourses: [...setup.linkedCourses.filter((l) => l.grade !== g), { grade: g, course }] });
+  }
+
+  async function createCourse(g: Grade) {
+    setCreating(g);
+    try {
+      const c = await createClassroomCourse(g);
+      setCourses((cs) => [...(cs ?? []), c]);
+      linkCourse(g, c);
+    } catch {
+      // banner explains
+    } finally {
+      setCreating(null);
+    }
+  }
+
+  async function importStudents() {
+    if (!setup) return;
+    setImporting(true);
+    try {
+      setSetup(await saveClass(setup)); // the class (and its course links) must exist before importing
+      setRoster(await importRosters());
+    } catch {
+      // banner explains
+    } finally {
+      setImporting(false);
+    }
   }
 
   async function finish() {
     if (!setup || !topics) return;
     setSaving(true);
-    await saveClass({ ...setup, setupComplete: true });
-    for (const g of setup.grades) await saveTopics(g, topics[g].filter((t) => t.title.trim()));
-    router.push("/teacher");
+    try {
+      await saveClass({ ...setup, setupComplete: true });
+      for (const g of setup.grades) await saveTopics(g, topics[g].filter((t) => t.title.trim()));
+      router.push("/teacher");
+    } catch {
+      setSaving(false);
+    }
   }
 
   const setBreak = (i: number, patch: Partial<BreakSlot>) => update({ breaks: setup.breaks.map((b, j) => (j === i ? { ...b, ...patch } : b)) });
@@ -122,31 +169,33 @@ export default function SetupPage() {
               </Button>
             ) : (
               <>
-                <Notice tone="good">Connected (demo account). Found {courses.length} courses.</Notice>
+                <Notice tone="good">
+                  {meta?.demoMode ? "Connected (demo account)." : "Connected to your Google Classroom."} Found {courses.length} course{courses.length === 1 ? "" : "s"}.
+                </Notice>
                 {setup.grades.map((g) => {
                   const link = setup.linkedCourses.find((l) => l.grade === g);
+                  const known = courses.some((c) => c.id === link?.course?.id);
                   return (
-                    <label key={g} className="flex items-center gap-3">
+                    <div key={g} className="flex flex-wrap items-center gap-2">
                       <GradeChip grade={g} />
                       <select
-                        className={field}
+                        className={cx(field, "min-w-0 flex-1")}
                         value={link?.course?.id ?? ""}
-                        onChange={(e) =>
-                          update({
-                            linkedCourses: [
-                              ...setup.linkedCourses.filter((l) => l.grade !== g),
-                              { grade: g, course: courses.find((c) => c.id === e.target.value) ?? null },
-                            ],
-                          })
-                        }
+                        onChange={(e) => linkCourse(g, courses.find((c) => c.id === e.target.value) ?? null)}
                         aria-label={`Classroom course for Grade ${g}`}
                       >
                         <option value="">Not linked</option>
+                        {!known && link?.course && <option value={link.course.id}>{link.course.name}</option>}
                         {courses.map((c) => (
-                          <option key={c.id} value={c.id}>{c.name} ({c.studentCount} students)</option>
+                          <option key={c.id} value={c.id}>{c.name}{c.section ? ` · ${c.section}` : ""}</option>
                         ))}
                       </select>
-                    </label>
+                      {!meta?.demoMode && !link?.course && (
+                        <Button icon={<Plus className="size-5" aria-hidden />} loading={creating === g} onClick={() => createCourse(g)}>
+                          Create &quot;Grade {g}&quot;
+                        </Button>
+                      )}
+                    </div>
                   );
                 })}
               </>
@@ -239,6 +288,47 @@ export default function SetupPage() {
             <Button icon={<Plus className="size-5" aria-hidden />} onClick={() => setTopics({ ...topics, [topicGrade]: [...topics[topicGrade], { chapter: topics[topicGrade].at(-1)?.chapter ?? "", title: "" }] })}>
               Add topic
             </Button>
+          </>
+        )}
+
+        {step === 5 && (
+          <>
+            <p className="text-ink-2">
+              Bring each linked course&apos;s students into Veda. Every child gets a picture and a 4-digit PIN for the family phone.
+            </p>
+            <Button variant="primary" size="lg" icon={<Users className="size-5" aria-hidden />} loading={importing} onClick={importStudents}>
+              {roster ? "Import again" : "Import students from Classroom"}
+            </Button>
+            {roster && (
+              <>
+                <Notice tone="good">
+                  {meta?.demoMode ? "Demo class:" : `${roster.added} new, ${roster.updated} updated.`} {roster.students.length} students in Veda.
+                </Notice>
+                <div>
+                  <p className="mb-1 text-sm text-ink-2">Student link (open it on the family phone once; it remembers the class)</p>
+                  <div className="flex gap-2">
+                    <input readOnly value={roster.studentLink} className={cx(field, "font-mono text-sm")} aria-label="Student link" />
+                    <Button
+                      icon={copied ? <Check className="size-5" aria-hidden /> : <Copy className="size-5" aria-hidden />}
+                      onClick={() => navigator.clipboard?.writeText(roster.studentLink).then(() => setCopied(true)).catch(() => {})}
+                    >
+                      {copied ? "Copied" : "Copy"}
+                    </Button>
+                  </div>
+                </div>
+                <ul className="max-h-96 space-y-1.5 overflow-y-auto">
+                  {roster.students.map((r) => (
+                    <li key={r.student.id} className="flex items-center gap-3 rounded-xl border border-line px-3 py-2">
+                      <Avatar picture={r.student.avatar} size="sm" />
+                      <span className="flex-1 truncate">{r.student.name}</span>
+                      <GradeChip grade={r.student.grade} />
+                      <span className="w-16 text-right font-mono text-lg tracking-widest" aria-label={`PIN ${r.pin ?? "none"}`}>{r.pin ?? "—"}</span>
+                    </li>
+                  ))}
+                </ul>
+                <p className="text-xs text-ink-3">Write each child&apos;s PIN in their notebook. You can see this list again on the Students page.</p>
+              </>
+            )}
           </>
         )}
       </Card>

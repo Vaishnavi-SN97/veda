@@ -70,7 +70,9 @@ function Chat({ student }: { student: Student }) {
       <div className="mb-4 flex flex-col items-center">
         <VidyaAvatar speaking={speaking} listening={mic.listening} />
         <p className="mt-2 font-display text-lg font-bold">Vidya</p>
-        <p className="text-sm text-ink-3">{mic.listening ? "Listening…" : thinking ? "Thinking…" : speaking ? "Speaking…" : "Your study friend"}</p>
+        <p className="text-sm text-ink-3" aria-live="polite">
+          {mic.listening ? "Listening… tap the mic to stop" : mic.working ? "Understanding…" : thinking ? "Thinking…" : speaking ? "Speaking…" : "Your study friend"}
+        </p>
         <div className="mt-3 flex items-center gap-2">
           <Segmented
             label="Language"
@@ -130,6 +132,7 @@ function Chat({ student }: { student: Student }) {
         {mic.supported && (
           <button
             type="button"
+            disabled={mic.working}
             onClick={mic.listening ? mic.stop : () => { stopSpeaking(); setSpeaking(false); mic.start(); }}
             className={cx("flex size-12 shrink-0 items-center justify-center rounded-xl", mic.listening ? "bg-accent text-accent-ink" : "bg-raised text-ink")}
             aria-label={mic.listening ? "Stop listening" : "Speak to Vidya"}

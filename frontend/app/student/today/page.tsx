@@ -128,7 +128,7 @@ function Quiz({ deck, student, onExit }: { deck: CardDeck; student: Student; onE
   const [n, setN] = useState(0);
   const [answers, setAnswers] = useState<number[]>([]);
   const [chosen, setChosen] = useState<number | null>(null);
-  const [result, setResult] = useState<QuizResult | null>(null);
+  const [result, setResult] = useState<(QuizResult & { queued?: boolean }) | null>(null);
   const q = deck.quiz[n];
 
   async function next() {
@@ -136,7 +136,7 @@ function Quiz({ deck, student, onExit }: { deck: CardDeck; student: Student; onE
     setAnswers(all);
     setChosen(null);
     if (n + 1 < deck.quiz.length) setN(n + 1);
-    else setResult(await submitQuiz(student.id, { deckId: deck.id, answers: all }));
+    else setResult(await submitQuiz(student.id, { deckId: deck.id, answers: all }, deck));
   }
 
   if (result) {
@@ -145,6 +145,7 @@ function Quiz({ deck, student, onExit }: { deck: CardDeck; student: Student; onE
         <PartyPopper className="mx-auto mb-3 size-12 text-accent" strokeWidth={1.5} aria-hidden />
         <p className="font-display text-5xl font-bold">{result.correct}/{result.total}</p>
         <p className="mt-2 text-lg text-ink-2">{result.percent >= 80 ? "Super! You've got it." : result.percent >= 50 ? "Good try! Revise once more." : "Let's learn this together with Vidya."}</p>
+        {result.queued && <p className="mt-2 text-sm text-warn">Saved on this phone. It will reach your teacher when you are online.</p>}
         <div className="mt-6 flex flex-col gap-3">
           <Link href="/student/vidya" className="inline-flex min-h-12 items-center justify-center gap-2 rounded-xl bg-accent px-4 font-medium text-accent-ink">
             <MessageCircle className="size-5" aria-hidden /> Ask Vidya about {deck.topicTitle}

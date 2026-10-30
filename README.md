@@ -1,36 +1,97 @@
 # Veda RuralClass
 
 A teacher-first web app for one teacher running a **multi-grade classroom** (Grades 3, 4 and 5
-in one room), built on top of Google Classroom. Veda plans the teacher's week, sends revision
-cards and a quiz home the moment a topic is done, gives students a voice tutor ("Vidya"), and
-flags who needs help early. **AI suggests, the teacher decides.**
+in one room), built on top of Google Classroom. Veda plans the teacher's week (OR-Tools), sends
+revision cards and a quiz home the moment a topic is done, gives students a voice tutor ("Vidya"),
+and flags who needs help early. **AI suggests, the teacher decides.**
 
 Team **MergeMates**: Shravya (lead), Vaishnavi, Chethana.
 
-## Status
+| Part | What |
+|---|---|
+| `frontend/` | Next.js 16 + TypeScript + Tailwind, installable PWA (works offline for students), Bright / Medium / Dark themes, Google sign-in (NextAuth) |
+| `backend/` | FastAPI + SQLAlchemy + Alembic on PostgreSQL (Supabase), OR-Tools CP-SAT planner, transparent risk score, Google Classroom, Sarvam AI (`ai_client.py`) |
+| `docs/` | API contract, imported syllabus (`syllabus-topics.txt`), proposal |
 
-- `frontend/`: complete, running on realistic demo data (Next.js + TypeScript + Tailwind, installable PWA,
-  Bright / Medium / Dark themes).
-- `backend/`: next step (FastAPI + PostgreSQL + OR-Tools + Sarvam AI), following `docs/api-contract.md`.
+## 1. Setup (once)
 
-## Run the frontend
+Needs **Node 20+**, **Python 3.11+**, and a root **`.env`** (never committed):
 
-```bash
-cd frontend
-npm install
-npm run dev
+```env
+DATABASE_URL=postgresql://...      # Supabase pooler URL
+DIRECT_URL=postgresql://...        # Supabase direct URL (used for migrations)
+DEMO_MODE=true                     # true = sample class, no Google login; false = real Classroom
+SARVAM_API_KEY=...                 # AI (cards, quiz, Vidya, voice)
+GOOGLE_CLIENT_ID=...apps.googleusercontent.com
+GOOGLE_CLIENT_SECRET=...
+NEXTAUTH_SECRET=...                # any long random string
+NEXTAUTH_URL=http://localhost:3000
+# optional
+VOICE_PROVIDER=browser             # or "sarvam" for Saaras/Bulbul voice (paid per use)
+SARVAM_DISABLED=false              # true = no AI calls at all (placeholders)
 ```
 
-Open http://localhost:3000. Demo mode needs no login or keys. Student demo PIN: `1234`.
+Then, from the project root:
 
-## Repository
+```bash
+npm run setup     # Python venv + packages, frontend packages, DB tables, syllabus import, demo data
+```
 
-| Path | What |
-|---|---|
-| `frontend/` | Teacher and student screens; `lib/api.ts` is the single data layer, `lib/mock/` the demo data |
-| `docs/api-contract.md` | API the backend implements |
-| `docs/VEDA-RURALCLASS_3pages.pdf` | Proposal |
-| `CLAUDE.md` | Full project plan and conventions |
+## 2. Run
 
-The KTBS textbook PDFs used for the syllabus are kept locally in `docs/syllabus/` and are not
-committed (they are marked "Not to be republished"). Secrets live in a root `.env` that is never committed.
+```bash
+npm start         # production build: use this for demos (fast, offline mode on)
+npm run dev       # development (frontend hot reload; restart after backend edits)
+npm test          # backend tests: planner rules, risk score, AI validation, Classroom
+```
+
+Open **http://localhost:3000**. API docs: http://localhost:8000/docs.
+Other commands: `npm run seed` (reset the demo class), `npm run pregenerate` (AI cards for demo topics, once),
+`npm run import-syllabus` (re-read `docs/syllabus/*.pdf`).
+
+## 3. Demo mode vs real mode
+
+Set `DEMO_MODE` in the root `.env` and restart (`npm start`).
+
+- **`DEMO_MODE=true`**: the sample class "Hosahalli Multi-grade Room" (25 students, 4 weeks of data,
+  Ravi's story). No Google login. "Send to class" uses fake Classroom ids. Student PIN for everyone: **1234**.
+  *Reset demo data* in the top-bar menu restores it (real classes are never touched).
+- **`DEMO_MODE=false`**: the teacher signs in with Google. Veda lists their real Classroom courses,
+  links one per grade (or creates "Grade 3/4/5"), imports the rosters (each child gets a 4-digit PIN),
+  posts card decks as **materials** and quizzes as **coursework** under a topic named after the chapter,
+  and syncs grades both ways (Marks → *Sync grades with Classroom*).
+
+### Google Cloud setup for real mode (once)
+
+1. In the Google Cloud project of your OAuth client, **enable the Google Classroom API**.
+2. OAuth consent screen: add these scopes, and while the app is in *Testing*, add the teacher's
+   Google account under **Test users**:
+   `classroom.courses`, `classroom.rosters.readonly`, `classroom.profile.emails`,
+   `classroom.coursework.students`, `classroom.courseworkmaterials`, `classroom.topics` (+ openid, email, profile).
+3. OAuth client → **Authorized redirect URI**: `http://localhost:3000/api/auth/callback/google`.
+4. Sign in on the Google screen and **tick every Classroom box** (Veda shows a "Sign in again" button if a
+   permission is missing or the login expires).
+
+Students don't sign in with Google: the teacher opens the **student link** shown in Class setup → Students
+(`http://localhost:3000/student?class=…`) once on the family phone; the phone remembers the class.
+
+## 4. The 2-minute demo script (demo mode)
+
+| # | Click | What it shows |
+|---|---|---|
+| 1 | **Teacher → Week plan → Next week → Generate my week** | OR-Tools plan: one teaching session per period, merged sessions for shared chapters, balanced teacher time |
+| 2 | **Topic done** (Grade 4, *decimals*) → **Mark done & prepare cards** → switch **ಕನ್ನಡ / हिंदी** → **Send to Grade 4** | AI cards + 5-question quiz from the textbook page, in 3 languages, saved (no repeat cost) |
+| 3 | **Student → Grade 4 → Ravi → PIN 1234 → New today → Decimals** → swipe cards → **Start quiz** | The child revises at home and takes the quiz |
+| 4 | **Ask Vidya → "What is a decimal?"** (or the mic) | Tutor answers simply in the child's language and asks a question back |
+| 5 | **Teacher → Marks** (Grade 4, decimals) → give Ravi **4/20** → **Save marks** | Test marks feed the risk score |
+| 6 | **Alerts** → *Ravi is falling behind in Fractional Numbers* → read the reasons → **Accept** | Transparent reasons (quiz trend, test, attendance, Vidya time) + a next step |
+| 7 | **Week plan → Next week** | The plan adapts: an extra Grade 4 re-teach period, marked *changed* |
+| 8 | **Reports → Export PDF** | School-office report |
+
+Offline: open the student screens once, then turn off the internet. Cards and quizzes still open, and a
+finished quiz is saved on the phone and sent when it's back online.
+
+## 5. Costs
+
+AI uses Sarvam (₹100 budget). Every call is logged; see **AI usage** in the top-bar menu (`/admin`).
+Generated cards, activity lines, alert wording and voice clips are cached, so the demo costs ~₹0 to re-run.

@@ -1,10 +1,13 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
-import { Check, Moon, RotateCcw, Sun, SunDim } from "lucide-react";
-import { DEMO_MODE, resetDemo } from "@/lib/api";
+import Link from "next/link";
+import { Check, Gauge, LogOut, Moon, RotateCcw, Sun, SunDim } from "lucide-react";
+import { signOut } from "next-auth/react";
+import { resetDemo } from "@/lib/api";
 import { THEMES, setTheme, useTheme, type Theme } from "./theme";
 import { cx } from "./ui";
+import { useMeta, useSession } from "./useMeta";
 
 const ICON: Record<Theme, typeof Sun> = { light: Sun, medium: SunDim, dark: Moon };
 
@@ -12,7 +15,11 @@ const ICON: Record<Theme, typeof Sun> = { light: Sun, medium: SunDim, dark: Moon
 export function SettingsMenu() {
   const theme = useTheme();
   const [open, setOpen] = useState(false);
+  const [resetting, setResetting] = useState(false);
   const box = useRef<HTMLDivElement>(null);
+  const meta = useMeta();
+  const session = useSession();
+  const DEMO_MODE = !!meta?.demoMode;
   const Current = ICON[theme];
 
   useEffect(() => {
@@ -62,21 +69,40 @@ export function SettingsMenu() {
               </button>
             );
           })}
-          {DEMO_MODE && (
+          <div className="my-2 border-t border-line" />
+          <Link href="/admin" role="menuitem" onClick={() => setOpen(false)} className="flex min-h-12 w-full items-center gap-3 rounded-xl px-3 text-left text-ink-2 hover:bg-raised">
+            <Gauge className="size-5" aria-hidden />
+            AI usage
+          </Link>
+          {!DEMO_MODE && session?.user && (
             <>
               <div className="my-2 border-t border-line" />
+              <p className="truncate px-3 pb-1 text-xs text-ink-3">Signed in as {session.user.email ?? session.user.name}</p>
+              <button role="menuitem" onClick={() => signOut({ callbackUrl: "/" })} className="flex min-h-12 w-full items-center gap-3 rounded-xl px-3 text-left text-ink-2 hover:bg-raised">
+                <LogOut className="size-5" aria-hidden />
+                Sign out
+              </button>
+            </>
+          )}
+          {DEMO_MODE && (
+            <>
               <button
                 role="menuitem"
-                onClick={() => {
-                  if (confirm("Reset the demo to its starting data?")) {
-                    resetDemo();
+                disabled={resetting}
+                onClick={async () => {
+                  if (!confirm("Reset the demo to its starting data? Everything done in the demo is cleared.")) return;
+                  setResetting(true);
+                  try {
+                    await resetDemo();
                     window.location.reload();
+                  } catch {
+                    setResetting(false);
                   }
                 }}
-                className="flex min-h-12 w-full items-center gap-3 rounded-xl px-3 text-left text-ink-2 hover:bg-raised"
+                className="flex min-h-12 w-full items-center gap-3 rounded-xl px-3 text-left text-ink-2 hover:bg-raised disabled:opacity-60"
               >
-                <RotateCcw className="size-5" aria-hidden />
-                Reset demo data
+                <RotateCcw className={cx("size-5", resetting && "animate-spin")} aria-hidden />
+                {resetting ? "Resetting… (about 30 s)" : "Reset demo data"}
               </button>
             </>
           )}

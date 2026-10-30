@@ -3,13 +3,15 @@
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { GraduationCap, Presentation } from "lucide-react";
-import { DEMO_MODE } from "@/lib/api";
 import { SettingsMenu } from "./SettingsMenu";
 import { cx } from "./ui";
+import { useMeta } from "./useMeta";
 
 /** Top bar: demo badge + teacher/student switch (demo only), and the display menu (always). */
 export function DemoBanner() {
   const path = usePathname();
+  const meta = useMeta();
+  const DEMO_MODE = !!meta?.demoMode;
   const role = path.startsWith("/student") ? "student" : path.startsWith("/teacher") ? "teacher" : null;
 
   return (

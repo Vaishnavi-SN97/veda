@@ -1,0 +1,191 @@
+﻿========================================================================
+Grade 3: grade3.pdf  160 pages  printed-page offset 10  OCR pages 0  unreadable pages 0
+
+  Chapter 1: Shapes   (PDF pages 11-27)
+     - Identify 2-D shapes formed by paper folding and paper cuttings   [p11-11, 704 chars]
+     - Name and compare various 2-D shapes by counting their sides, corners and diagonals   [p12-13, 836 chars]
+     - Construct some simple 3-D objects using a ruler/free hand   [p14-15, 960 chars]
+     - By piling coins and by piling bangles construct solid cylinder and hollow cylinder respectively and also establish relation between 2-D and 3-D objects   [p16-17, 1060 chars]
+     - Arrange the tiles of familiar shape in a given region   [p18-18, 463 chars]
+     - Distinguish between similar shaped tiles and dissimilar shaped tiles   [p19-20, 1239 chars]
+     - Read simple map   [p21-22, 773 chars]
+     - Make shapes using straight lines and curves on the dot-grid   [p23-24, 1809 chars]
+     - Construct various shapes using tangram pieces   [p25-27, 1641 chars]
+
+  Chapter 2: Numbers   (PDF pages 28-76)
+     - Read and write numbers from 0 to 999   [p28-40, 5489 chars]
+     - Expand numbers with respect to place values   [p41-53, 7651 chars]
+     - Count numbers starting from any number and do skip counting   [p54-66, 8000 chars]
+     - Identify the greatest and smallest numbers when 3 or more numbers are given from 0 to 999   [p67-67, 1139 chars]
+     - Arrange the given numbers in the ascending and the descending orders   [p68-68, 782 chars]
+     - Form greatest and smallest numbers by using given digits   [p69-72, 2729 chars]
+     - Identify 3 digit numbers on the number line   [p73-74, 1543 chars]
+     - Find the values of 3 digit numbers on number line   [p75-76, 1040 chars]
+
+  Chapter 3: Addition   (PDF pages 77-105)
+     - Solve addition problems expressed in different situations presented through pictures and stories   [p77-80, 2390 chars]
+     - Use place value in standard algorithm of addition   [p81-85, 2857 chars]
+     - Add three digit numbers without borrowing and with borrowing   [p86-90, 2758 chars]
+     - Solve problems on addition shown through diagrams and stories for various situations   [p91-95, 2933 chars]
+     - Construct/frame additon problems   [p96-100, 1846 chars]
+     - Estimate the sum of 2 given numbers not exceeding 99   [p101-105, 3602 chars]
+
+  Chapter 4: Subtraction   (PDF pages 106-133)
+     - Subtract three digit numbers without borrowing and by borrowing   [p106-113, 5551 chars]
+     - Solve problems with using place value table   [p114-116, 1938 chars]
+     - Solve subtraction problems   [p117-120, 2809 chars]
+     - Solve subtraction problems for various situations expressed in stories & diagrams   [p121-124, 2723 chars]
+     - Frame problesm on subtraction   [p125-128, 1543 chars]
+     - Extimate the difference between two given numbers which are less than 99   [p129-133, 2435 chars]
+
+  Chapter 5: Multiplication   (PDF pages 134-160)
+     - Understand multiplication as repeated addition   [p134-137, 1782 chars]
+     - Identify the sign of multiplication   [p138-140, 1539 chars]
+     - Construct multiplication tables from 6 to 10   [p141-146, 2614 chars]
+     - Use multiplication facts in situation   [p147-153, 3961 chars]
+     - Multiply two digit numbers using standard algorithm and Lattice multiplication algorithm   [p154-160, 3688 chars]
+
+  => 5 chapters, 34 topics
+========================================================================
+Grade 4: grade4.pdf  168 pages  printed-page offset 10  OCR pages 0  unreadable pages 0
+
+  Chapter 1: Perimeter and Area of simple Geometrical figures   (PDF pages 11-22)
+     - Find the perimeter of simple geometrical figures   [p11-11, 1042 chars]
+     - Develop the concept of perimeter and solve problems   [p11-11, 1042 chars]
+     - Understand the area of simple geometrical figures   [p12-17, 3665 chars]
+     - Calculate the area of given geometrical figures   [p18-22, 2770 chars]
+
+  Chapter 2: Numbers   (PDF pages 23-56)
+     - Read and write number up to 9999 in an order   [p23-24, 1255 chars]
+     - Write four digit number in the place value chart   [p25-29, 3052 chars]
+     - Write preceding, succeeding and middle numbers for the given four digit numbers   [p30-32, 1964 chars]
+     - Write four digit numbers in expanded form and in general form using the expanded notation   [p33-36, 2822 chars]
+     - Identify the place value and face value of digits of a number   [p37-44, 5678 chars]
+     - Identify the greatest and smallest number from the four digit numbers   [p45-45, 1204 chars]
+     - Arrange the given 4 digit numbers in ascending and descending order   [p46-48, 2780 chars]
+     - Form the greatest and smallest number using the given digits   [p49-56, 7621 chars]
+
+  Chapter 3: Addition   (PDF pages 57-71)
+     - Add four digit numbers with out regrouping   [p57-59, 1700 chars]
+     - Add four digit numbers with carry   [p60-63, 2661 chars]
+     - Solve verbal problems in daily life by writing numbers according to their place value   [p64-67, 2846 chars]
+     - Add mentally and quickly by knowing the process of addition   [p68-71, 2148 chars]
+
+  Chapter 4: Subtraction   (PDF pages 72-81)
+     - Subtract 4 digit numbers without borrowing   [p72-73, 1494 chars]
+     - Subtract 4 digits number with borrowing   [p74-75, 1693 chars]
+     - Solve verbal problems in daily life situation   [p76-78, 2305 chars]
+     - Subtract mentally and quickly by knowing the process of subtraction   [p79-81, 1700 chars]
+
+  Chapter 5: Multiplication   (PDF pages 82-102)
+     - Understand that multiplication is a repeated addition   [p82-86, 3648 chars]
+     - Understand various terms used in multiplication   [p87-92, 4370 chars]
+     - Recognise the basic multiplication facts   [p93-98, 2993 chars]
+     - Multiply by lattice method   [p99-99, 397 chars]
+     - Multiply a number by 1- digit and 2- digit number (with out carrying / with carrying the product not exceeding 9999)   [p99-99, 397 chars]
+     - Solve multiplication problems arising in our everyday life   [p99-99, 397 chars]
+     - Estimate the multiplication product   [p100-102, 1649 chars]
+
+  Chapter 6: Division   (PDF pages 103-120)
+     - Divide numbers by grouping   [p103-104, 1194 chars]
+     - Divide by using dots   [p105-105, 613 chars]
+     - Understand that division is repeated subtraction   [p106-108, 1758 chars]
+     - Compare multiplication and division   [p109-110, 1278 chars]
+     - Divide the dividend by one digit number without remainder   [p111-111, 475 chars]
+     - Divide the dividend by one digit number with remainder   [p112-115, 2622 chars]
+     - Solve statement problems related to our daily life situations   [p116-120, 2961 chars]
+
+  Chapter 7: Circles   (PDF pages 121-128)
+     - Draw a circle without using any instrument   [p121-122, 1594 chars]
+     - Draw a circle using the compasses   [p123-125, 1485 chars]
+     - Identify the centre, radius and diameter of a circle   [p126-128, 2196 chars]
+
+  Chapter 8: Mental Arithmetic   (PDF pages 129-148)
+     - Add multiples of 10 and 100 mentally   [p129-143, 8000 chars]
+     - Subtract multiples of 10 and 100 mentally   [p144-146, 2048 chars]
+     - Find the product of two numbers by using partial products   [p147-148, 971 chars]
+
+  Chapter 9: Fractional Numbers   (PDF pages 149-168)
+     - Know the meaning of fraction   [p149-152, 1296 chars]
+     - Identify numerator and denominator of a fraction   [p153-159, 4001 chars]
+     - Find equivalent fractions for given fractions   [p160-163, 2683 chars]
+     - Know the meaning of the decimals 0.1, 0.2, 0.3   [p164-168, 3502 chars]
+
+  => 9 chapters, 44 topics
+========================================================================
+Grade 5: grade5.pdf  136 pages  printed-page offset 2  OCR pages 0  unreadable pages 0
+
+  Chapter 1: Multiplication   (PDF pages 3-9)
+     - Find the product of two 3-digit numbers   [p3-3, 1127 chars]
+     - Multliplication of a 4-digit number by a 1 & 2 digit number   [p4-5, 2015 chars]
+     - Multliplication of a 5-digit number with a 1- digit number   [p6-7, 1684 chars]
+     - Solve verbal problems based on multiplication   [p8-9, 1065 chars]
+
+  Chapter 2: Division   (PDF pages 10-22)
+     - Divide the numbers by standard division algorithm method   [p10-13, 3129 chars]
+     - Divide a 5-digit number by another 1 or 2-digit number by using standard division algorithm method   [p14-17, 3089 chars]
+     - Solve verbal problems based on division of numbers   [p18-22, 4045 chars]
+
+  Chapter 3: Mental Arithmetic   (PDF pages 23-36)
+     - Explain the process of estimation   [p23-23, 1102 chars]
+     - Explain the process of approximation   [p23-23, 1102 chars]
+     - Estimate the sum of two 5 digit numbers to nearest ten thousands place   [p24-29, 5909 chars]
+     - Estimate the difference of two 5 digit numbers to nearest ten thousands place   [p30-31, 1804 chars]
+     - Estimate the product of two numbers to the nearest ten thousands place   [p32-32, 710 chars]
+     - Estimate the quotient of two numbers   [p33-36, 3133 chars]
+
+  Chapter 4: Decimal fractions   (PDF pages 37-52)
+     - Express the length of an object in decimal fraction form   [p37-37, 797 chars]
+     - Use decimal fraction to express the length in centimetre   [p38-40, 1909 chars]
+     - Use decimal fraction to express the length in metre   [p41-42, 1532 chars]
+     - Use decimal fraction to express the cost in rupees   [p43-45, 2570 chars]
+     - Express a given fraction in decimal notation   [p46-48, 1938 chars]
+     - Express a decimal notation in fraction form   [p49-52, 2071 chars]
+
+  Chapter 5: Money   (PDF pages 53-67)
+     - Write rupees and paise in decimal form   [p53-53, 924 chars]
+     - Solve problems on money involving all the mathematical fundamental operations   [p53-53, 924 chars]
+     - Understand the importance of earning, saving and spending money and its wise usage   [p53-53, 924 chars]
+     - Check the list of the items purchased while shopping   [p53-53, 924 chars]
+     - Know the prices prevalent in the market and thus do the shopping accordingly   [p53-53, 924 chars]
+     - Know the need for a bill   [p54-61, 5861 chars]
+     - Prepare a bill   [p62-64, 2111 chars]
+     - Reading the bill and understand the information given in the bill   [p65-67, 2415 chars]
+
+  Chapter 6: Weight and Volume   (PDF pages 68-83)
+     - Know the units to weight heavy and light objects used in daily life   [p68-69, 1781 chars]
+     - Compare the units of heavy and light weight and state their relationship   [p70-72, 2470 chars]
+     - Analyse and solve problems involving weight using mathematical operations   [p73-75, 2697 chars]
+     - Know the units of measuring objects having greater and lesser volume   [p76-76, 887 chars]
+     - Compare the units of greater volume with units of lesser volume and find their relationship   [p77-79, 2788 chars]
+     - Analyse and solve problems involving volume   [p80-83, 3341 chars]
+
+  Chapter 7: Time   (PDF pages 84-95)
+     - Convert 24 hour clock time into 12 hour clock time   [p84-87, 3640 chars]
+     - Solve the problems related to time with respect to daily problems involving addition and subtraction   [p88-91, 3108 chars]
+     - Calculate the time required to complete a work or an event   [p92-95, 3170 chars]
+
+  Chapter 8: Symmetrical figures   (PDF pages 96-106)
+     - Cut and fold the papers, use ink blots to identify the images of figures   [p96-97, 1330 chars]
+     - Identify the images of simple geometrical figures   [p98-100, 1922 chars]
+     - Identify symmetry in two and three dimensional figures   [p101-103, 1943 chars]
+     - Identify the figures obtained when 2D figures such as circle, right angled triangle and rectangle are rotated   [p104-106, 2334 chars]
+
+  Chapter 9: Three dimensional figures   (PDF pages 107-113)
+     - Represent 3 dimensional figures as 2 dimensional figures   [p107-107, 832 chars]
+     - Draw the elevation, plan and side view of the 3D geometrical figures   [p108-110, 1899 chars]
+     - Draw geometrical sketches of cube, cylinder and cone with definite nets   [p111-113, 1588 chars]
+
+  Chapter 10: Patterns   (PDF pages 114-131)
+     - Understand the rule followed in the pattern   [p114-121, 3964 chars]
+     - Complete the pattern by following the rule   [p122-129, 2684 chars]
+     - Create designs   [p130-131, 547 chars]
+     - Know that numbers can be arranged in patterns   [p130-131, 547 chars]
+     - Identify the number pattern   [p130-131, 547 chars]
+     - Form triangular and square numbers through patterns   [p130-131, 547 chars]
+     - Recognize number pattern and solve the problem   [p130-131, 547 chars]
+     - Relate sequence of odd numbers and consecutive square numbers   [p130-131, 547 chars]
+     - Make border strips and tile patterns   [p130-131, 547 chars]
+     - Know about different kinds of border strips and tiling patterns   [p130-131, 547 chars]
+
+  => 10 chapters, 53 topics

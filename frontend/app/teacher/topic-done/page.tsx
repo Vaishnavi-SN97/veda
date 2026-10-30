@@ -1,8 +1,8 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { BookCheck, CheckCircle2, Database, Send, Sparkles } from "lucide-react";
-import { getDeck, getTopics, markTopicDone, saveDeck, sendDeck } from "@/lib/api";
+import { BookCheck, CheckCircle2, Database, RefreshCw, Send, Sparkles } from "lucide-react";
+import { getDeck, getTopics, markTopicDone, regenerateDeck, sendDeck } from "@/lib/api";
 import type { CardDeck, Grade, Language, Topic } from "@/lib/types";
 import { Button, Card, GradePicker, Loading, Notice, PageHeader, SectionTitle, Segmented, cx } from "@/components/ui";
 
@@ -22,6 +22,7 @@ export default function TopicDonePage() {
   const [deck, setDeck] = useState<CardDeck | null>(null);
   const [loadingDeck, setLoadingDeck] = useState(false);
   const [sending, setSending] = useState(false);
+  const [regenerating, setRegenerating] = useState(false);
   const [sent, setSent] = useState(false);
 
   function changeGrade(g: Grade) {
@@ -44,17 +45,35 @@ export default function TopicDonePage() {
     if (!topic) return;
     setLoadingDeck(true);
     setSent(false);
-    if (topic.status !== "done") {
-      const done = await markTopicDone(topic.id);
-      setTopics((ts) => ts?.map((t) => (t.id === done.id ? done : t)) ?? null);
+    try {
+      if (topic.status !== "done") {
+        const done = await markTopicDone(topic.id);
+        setTopics((ts) => ts?.map((t) => (t.id === done.id ? done : t)) ?? null);
+      }
+      setDeck(await getDeck(topic.id, l));
+    } catch {
+      // error banner explains
+    } finally {
+      setLoadingDeck(false);
     }
-    setDeck(await getDeck(topic.id, l));
-    setLoadingDeck(false);
   }
 
   async function switchLang(l: Language) {
     setLang(l);
     if (deck) await prepare(l);
+  }
+
+  async function regenerate() {
+    if (!deck || !confirm("Write a fresh set of cards and quiz for this topic? This uses one Sarvam AI call and replaces your edits.")) return;
+    setRegenerating(true);
+    setSent(false);
+    try {
+      setDeck(await regenerateDeck(deck.id));
+    } catch {
+      // error banner explains
+    } finally {
+      setRegenerating(false);
+    }
   }
 
   function editCard(i: number, key: "title" | "body" | "example", value: string) {
@@ -70,10 +89,14 @@ export default function TopicDonePage() {
   async function send() {
     if (!deck) return;
     setSending(true);
-    await saveDeck(deck);
-    setDeck(await sendDeck(deck));
-    setSending(false);
-    setSent(true);
+    try {
+      setDeck(await sendDeck(deck)); // sending also saves your edits
+      setSent(true);
+    } catch {
+      // error banner explains
+    } finally {
+      setSending(false);
+    }
   }
 
   return (
@@ -112,11 +135,24 @@ export default function TopicDonePage() {
         <>
           <div className="mb-4 flex flex-wrap items-center justify-between gap-3">
             <Segmented label="Language" value={lang} onChange={switchLang} options={LANGS} />
-            <span className="flex items-center gap-1.5 text-sm text-ink-3">
-              {deck.cached ? <Database className="size-4" aria-hidden /> : <Sparkles className="size-4 text-accent" aria-hidden />}
-              {deck.cached ? "Saved copy, no AI cost" : "New AI draft (1 Sarvam call, now saved)"}
-            </span>
+            <div className="flex items-center gap-2">
+              <span className="flex items-center gap-1.5 text-sm text-ink-3">
+                {deck.cached ? <Database className="size-4" aria-hidden /> : <Sparkles className="size-4 text-accent" aria-hidden />}
+                {deck.cached ? "Saved copy, no AI cost" : "New draft, now saved"}
+              </span>
+              <Button variant="ghost" icon={<RefreshCw className="size-4" aria-hidden />} loading={regenerating} onClick={regenerate} title="Write a fresh set of cards and quiz (uses one Sarvam AI call)">
+                Regenerate
+              </Button>
+            </div>
           </div>
+
+          {deck.placeholder && (
+            <div className="mb-5">
+              <Notice>
+                Placeholder text: Sarvam couldn&apos;t write this deck (it is off, or its answer failed the checks twice), so these cards quote the textbook pages and the quiz is simple practice sums. Press Regenerate to try again, or edit before sending.
+              </Notice>
+            </div>
+          )}
 
           {sent && (
             <div className="mb-5">

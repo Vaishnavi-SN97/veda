@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { Check, Mic, MicOff, Save } from "lucide-react";
-import { TODAY, getAttendance, getStudents, readVoiceNote, saveAttendance } from "@/lib/api";
+import { getAttendance, getStudents, readVoiceNote, saveAttendance } from "@/lib/api";
 import type { AttendanceSheet, Grade, Student } from "@/lib/types";
 import { Avatar } from "@/components/Avatar";
 import { Button, Card, GradePicker, Loading, Notice, PageHeader, cx } from "@/components/ui";
@@ -24,7 +24,7 @@ export default function AttendancePage() {
   }
 
   useEffect(() => {
-    Promise.all([getStudents(grade), getAttendance(TODAY, grade)]).then(([s, a]) => {
+    Promise.all([getStudents(grade), getAttendance(grade)]).then(([s, a]) => {
       setStudents(s);
       setSheet(a);
     });
@@ -50,9 +50,14 @@ export default function AttendancePage() {
   async function save() {
     if (!sheet) return;
     setSaving(true);
-    setSheet(await saveAttendance(sheet));
-    setSaving(false);
-    setMessage(`Grade ${grade} attendance saved.`);
+    try {
+      setSheet(await saveAttendance(sheet));
+      setMessage(`Grade ${grade} attendance saved.`);
+    } catch {
+      // error banner explains
+    } finally {
+      setSaving(false);
+    }
   }
 
   const present = sheet ? Object.values(sheet.marks).filter((m) => m === "present").length : 0;
@@ -76,8 +81,9 @@ export default function AttendancePage() {
               variant={voice.listening ? "primary" : "secondary"}
               icon={voice.listening ? <MicOff className="size-5" aria-hidden /> : <Mic className="size-5" aria-hidden />}
               onClick={voice.listening ? voice.stop : voice.start}
+              loading={voice.working}
             >
-              {voice.listening ? "Listening… tap to stop" : "Voice note"}
+              {voice.listening ? "Listening… tap to stop" : voice.working ? "Understanding…" : "Voice note"}
             </Button>
           ) : (
             <form
@@ -98,7 +104,9 @@ export default function AttendancePage() {
               <Button type="submit">Apply</Button>
             </form>
           )}
-          <p className="text-sm text-ink-3">Say: “Absent today: Kiran and Divya”.</p>
+          <p className="text-sm text-ink-3">
+            Say: “Absent today: Kiran and Divya”.{voice.provider === "sarvam" && " (Sarvam speech-to-text)"}
+          </p>
         </div>
         {voice.error && <p className="mt-2 text-sm text-bad">{voice.error}</p>}
       </Card>
